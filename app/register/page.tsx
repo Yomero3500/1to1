@@ -9,7 +9,9 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
-import { ImageIcon } from "lucide-react"
+import { Alert, AlertDescription } from "@/components/ui/alert"
+import { ImageIcon, AlertCircle, CheckCircle2 } from "lucide-react"
+import { signUp } from "@/lib/supabase/auth"
 
 export default function RegisterPage() {
   const router = useRouter()
@@ -18,22 +20,69 @@ export default function RegisterPage() {
   const [password, setPassword] = useState("")
   const [confirmPassword, setConfirmPassword] = useState("")
   const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [success, setSuccess] = useState(false)
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault()
+    setError(null)
 
     if (password !== confirmPassword) {
-      alert("Las contraseñas no coinciden")
+      setError("Las contraseñas no coinciden")
+      return
+    }
+
+    if (password.length < 6) {
+      setError("La contraseña debe tener al menos 6 caracteres")
       return
     }
 
     setIsLoading(true)
 
-    // Simulate registration
-    await new Promise((resolve) => setTimeout(resolve, 1000))
+    try {
+      const { user, session } = await signUp(email, password, name)
+      
+      if (session) {
+        // User is automatically signed in (email confirmation disabled)
+        router.push("/dashboard")
+        router.refresh()
+      } else if (user) {
+        // Email confirmation is required
+        setSuccess(true)
+      }
+    } catch (err: any) {
+      setError(err.message || "Error al crear la cuenta. Intenta nuevamente.")
+    } finally {
+      setIsLoading(false)
+    }
+  }
 
-    // Mock registration - redirect to dashboard
-    router.push("/dashboard")
+  if (success) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background p-4">
+        <Card className="w-full max-w-md">
+          <CardHeader className="space-y-1 text-center">
+            <div className="flex items-center justify-center gap-2 mb-2">
+              <div className="bg-green-500 text-white p-2 rounded-lg">
+                <CheckCircle2 className="h-6 w-6" />
+              </div>
+            </div>
+            <CardTitle className="text-2xl">¡Revisa tu correo!</CardTitle>
+            <CardDescription>
+              Hemos enviado un enlace de confirmación a <strong>{email}</strong>. 
+              Por favor, revisa tu bandeja de entrada y haz clic en el enlace para activar tu cuenta.
+            </CardDescription>
+          </CardHeader>
+          <CardFooter>
+            <Link href="/login" className="w-full">
+              <Button variant="outline" className="w-full">
+                Volver al inicio de sesión
+              </Button>
+            </Link>
+          </CardFooter>
+        </Card>
+      </div>
+    )
   }
 
   return (
@@ -51,6 +100,12 @@ export default function RegisterPage() {
         </CardHeader>
         <form onSubmit={handleRegister}>
           <CardContent className="space-y-4">
+            {error && (
+              <Alert variant="destructive">
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription>{error}</AlertDescription>
+              </Alert>
+            )}
             <div className="space-y-2">
               <Label htmlFor="name">Nombre Completo</Label>
               <Input
@@ -60,6 +115,7 @@ export default function RegisterPage() {
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 required
+                disabled={isLoading}
               />
             </div>
             <div className="space-y-2">
@@ -71,6 +127,7 @@ export default function RegisterPage() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
+                disabled={isLoading}
               />
             </div>
             <div className="space-y-2">
@@ -82,6 +139,8 @@ export default function RegisterPage() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
+                disabled={isLoading}
+                minLength={6}
               />
             </div>
             <div className="space-y-2">
@@ -93,6 +152,7 @@ export default function RegisterPage() {
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
                 required
+                disabled={isLoading}
               />
             </div>
           </CardContent>

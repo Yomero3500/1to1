@@ -5,10 +5,12 @@ import { useRouter } from "next/navigation"
 import { DashboardHeader } from "@/components/dashboard-header"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
+import { Alert, AlertDescription } from "@/components/ui/alert"
 import { ImageUploadZone } from "@/components/image-upload-zone"
 import { FramePreview } from "@/components/frame-preview"
-import { ArrowLeft, Loader2 } from "lucide-react"
+import { ArrowLeft, Loader2, AlertCircle } from "lucide-react"
 import Link from "next/link"
+import { createBatch, createImage, uploadImage, updateImageStatus } from "@/lib/supabase/queries"
 
 interface UploadedImage {
   id: string
@@ -22,6 +24,8 @@ export default function UploadPage() {
   const [images, setImages] = useState<UploadedImage[]>([])
   const [selectedImage, setSelectedImage] = useState<UploadedImage | null>(null)
   const [isProcessing, setIsProcessing] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [uploadProgress, setUploadProgress] = useState<string>("")
 
   const handleImagesUploaded = (newImages: UploadedImage[]) => {
     setImages(newImages)
@@ -42,12 +46,43 @@ export default function UploadPage() {
   }
 
   const handleProcessBatch = async () => {
+    if (images.length === 0) return
+    
     setIsProcessing(true)
+    setError(null)
 
-    // Simulate processing (Gigapixel AI simulation)
-    await new Promise((resolve) => setTimeout(resolve, 3000))
+    try {
+      // 1. Create batch in Supabase
+      setUploadProgress("Creando lote...")
+      const batch = await createBatch()
 
-    router.push("/results")
+      // 2. Upload each image and create records
+      for (let i = 0; i < images.length; i++) {
+        const img = images[i]
+        setUploadProgress(`Subiendo imagen ${i + 1} de ${images.length}...`)
+        
+        // Upload to Storage
+        const originalUrl = await uploadImage(img.file, batch.id)
+        
+        // Create image record
+        await createImage({
+          batch_id: batch.id,
+          original_url: originalUrl,
+          status: 'completed' // For now, mark as completed since we're not doing actual processing
+        })
+      }
+
+      setUploadProgress("¡Lote creado exitosamente!")
+      
+      // Redirect to results page with batch ID
+      router.push(`/results?batch=${batch.id}`)
+    } catch (err: any) {
+      console.error("Error procesando lote:", err)
+      setError(err.message || "Error al procesar el lote. Intenta nuevamente.")
+    } finally {
+      setIsProcessing(false)
+      setUploadProgress("")
+    }
   }
 
   return (
@@ -87,6 +122,12 @@ export default function UploadPage() {
                   <CardDescription>Información sobre el lote actual</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
+                  {error && (
+                    <Alert variant="destructive">
+                      <AlertCircle className="h-4 w-4" />
+                      <AlertDescription>{error}</AlertDescription>
+                    </Alert>
+                  )}
                   <div className="flex justify-between items-center">
                     <span className="text-sm text-muted-foreground">Total de imágenes:</span>
                     <span className="font-medium">{images.length}</span>
@@ -97,7 +138,10 @@ export default function UploadPage() {
                       {images.filter((img) => Math.abs(img.aspectRatio - 2 / 3) > 0.01).length}
                     </span>
                   </div>
-                  <Button onClick={handleProcessBatch} disabled={isProcessing} className="w-full gap-2">
+                  {uploadProgress && (
+                    <p className="text-sm text-muted-foreground text-center">{uploadProgress}</p>
+                  )}
+                  <Button onClick={handleProcessBatch} disabled={isProcessing || images.length === 0} className="w-full gap-2">
                     {isProcessing ? (
                       <>
                         <Loader2 className="h-4 w-4 animate-spin" />

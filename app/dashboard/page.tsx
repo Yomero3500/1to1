@@ -1,63 +1,60 @@
 "use client"
 
+import { useEffect, useState } from "react"
 import { DashboardHeader } from "@/components/dashboard-header"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Plus, Download, Calendar } from "lucide-react"
+import { Plus, Download, Calendar, Loader2, Eye } from "lucide-react"
 import { ImageIcon } from "lucide-react"
 import { useRouter } from "next/navigation"
+import { getBatches, getDashboardStats } from "@/lib/supabase/queries"
 
-// Mock data for print batches
-const mockBatches = [
-  {
-    id: "LOTE-001",
-    date: "2024-01-15",
-    photoCount: 24,
-    status: "completed",
-  },
-  {
-    id: "LOTE-002",
-    date: "2024-01-14",
-    photoCount: 18,
-    status: "completed",
-  },
-  {
-    id: "LOTE-003",
-    date: "2024-01-12",
-    photoCount: 32,
-    status: "completed",
-  },
-  {
-    id: "LOTE-004",
-    date: "2024-01-10",
-    photoCount: 15,
-    status: "processing",
-  },
-]
-
-const statusColors = {
-  completed: "bg-green-500/10 text-green-700 dark:text-green-400 hover:bg-green-500/20",
-  processing: "bg-accent/10 text-accent-foreground hover:bg-accent/20",
+interface Batch {
+  id: string
+  user_id: string
+  created_at: string
+  photoCount: number
 }
 
-const statusLabels = {
-  completed: "Completado",
-  processing: "Procesando",
+interface Stats {
+  totalBatches: number
+  totalPhotos: number
+  processingCount: number
 }
 
 export default function DashboardPage() {
   const router = useRouter()
+  const [batches, setBatches] = useState<Batch[]>([])
+  const [stats, setStats] = useState<Stats>({ totalBatches: 0, totalPhotos: 0, processingCount: 0 })
+  const [isLoading, setIsLoading] = useState(true)
+
+  useEffect(() => {
+    loadData()
+  }, [])
+
+  const loadData = async () => {
+    try {
+      const [batchesData, statsData] = await Promise.all([
+        getBatches(),
+        getDashboardStats()
+      ])
+      setBatches(batchesData)
+      setStats(statsData)
+    } catch (error) {
+      console.error("Error cargando datos:", error)
+    } finally {
+      setIsLoading(false)
+    }
+  }
 
   const handleCreateBatch = () => {
     router.push("/upload")
   }
 
-  const handleDownloadBatch = (batchId: string) => {
-    console.log(`Downloading batch: ${batchId}`)
-    // Simulate download
-    alert(`Descargando lote ${batchId}...`)
+  const handleViewBatch = (batchId: string) => {
+    router.push(`/results?batch=${batchId}`)
   }
 
   return (
@@ -73,7 +70,7 @@ export default function DashboardPage() {
               <ImageIcon className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{mockBatches.length}</div>
+              <div className="text-2xl font-bold">{stats.totalBatches}</div>
               <p className="text-xs text-muted-foreground">Lotes procesados</p>
             </CardContent>
           </Card>
@@ -84,7 +81,7 @@ export default function DashboardPage() {
               <ImageIcon className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{mockBatches.reduce((acc, batch) => acc + batch.photoCount, 0)}</div>
+              <div className="text-2xl font-bold">{stats.totalPhotos}</div>
               <p className="text-xs text-muted-foreground">Fotos procesadas</p>
             </CardContent>
           </Card>
@@ -95,8 +92,8 @@ export default function DashboardPage() {
               <Calendar className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{mockBatches.filter((b) => b.status === "processing").length}</div>
-              <p className="text-xs text-muted-foreground">Lotes activos</p>
+              <div className="text-2xl font-bold">{stats.processingCount}</div>
+              <p className="text-xs text-muted-foreground">Imágenes activas</p>
             </CardContent>
           </Card>
         </div>
@@ -116,43 +113,48 @@ export default function DashboardPage() {
             </div>
           </CardHeader>
           <CardContent>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>ID Lote</TableHead>
-                  <TableHead>Fecha</TableHead>
-                  <TableHead>Cantidad de Fotos</TableHead>
-                  <TableHead>Estado</TableHead>
-                  <TableHead className="text-right">Acciones</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {mockBatches.map((batch) => (
-                  <TableRow key={batch.id}>
-                    <TableCell className="font-medium">{batch.id}</TableCell>
-                    <TableCell>{new Date(batch.date).toLocaleDateString("es-ES")}</TableCell>
-                    <TableCell>{batch.photoCount} fotos</TableCell>
-                    <TableCell>
-                      <Badge variant="secondary" className={statusColors[batch.status as keyof typeof statusColors]}>
-                        {statusLabels[batch.status as keyof typeof statusLabels]}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleDownloadBatch(batch.id)}
-                        disabled={batch.status === "processing"}
-                        className="gap-2"
-                      >
-                        <Download className="h-4 w-4" />
-                        Descargar ZIP
-                      </Button>
-                    </TableCell>
+            {isLoading ? (
+              <div className="flex items-center justify-center py-8">
+                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+              </div>
+            ) : batches.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-8 text-center">
+                <ImageIcon className="h-12 w-12 text-muted-foreground mb-4" />
+                <p className="text-muted-foreground">No tienes lotes aún</p>
+                <p className="text-sm text-muted-foreground">Crea tu primer lote para comenzar</p>
+              </div>
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>ID Lote</TableHead>
+                    <TableHead>Fecha</TableHead>
+                    <TableHead>Cantidad de Fotos</TableHead>
+                    <TableHead className="text-right">Acciones</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                </TableHeader>
+                <TableBody>
+                  {batches.map((batch) => (
+                    <TableRow key={batch.id}>
+                      <TableCell className="font-medium font-mono text-xs">{batch.id.slice(0, 8)}...</TableCell>
+                      <TableCell>{new Date(batch.created_at).toLocaleDateString("es-ES")}</TableCell>
+                      <TableCell>{batch.photoCount} fotos</TableCell>
+                      <TableCell className="text-right">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleViewBatch(batch.id)}
+                          className="gap-2"
+                        >
+                          <Eye className="h-4 w-4" />
+                          Ver Detalles
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            )}
           </CardContent>
         </Card>
       </main>

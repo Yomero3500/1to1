@@ -1,5 +1,6 @@
 "use client"
 
+import { useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
 import {
   DropdownMenu,
@@ -12,12 +13,39 @@ import {
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { ImageIcon, LogOut, User } from "lucide-react"
 import { useRouter } from "next/navigation"
+import { signOut, getUser } from "@/lib/supabase/auth"
+import type { User as SupabaseUser } from "@supabase/supabase-js"
 
 export function DashboardHeader() {
   const router = useRouter()
+  const [user, setUser] = useState<SupabaseUser | null>(null)
 
-  const handleLogout = () => {
-    router.push("/login")
+  useEffect(() => {
+    getUser().then(setUser).catch(console.error)
+  }, [])
+
+  const handleLogout = async () => {
+    try {
+      await signOut()
+      router.push("/login")
+      router.refresh()
+    } catch (error) {
+      console.error("Error al cerrar sesión:", error)
+    }
+  }
+
+  const getUserInitials = () => {
+    if (!user) return "U"
+    const name = user.user_metadata?.full_name || user.email || ""
+    if (user.user_metadata?.full_name) {
+      return name.split(" ").map((n: string) => n[0]).join("").toUpperCase().slice(0, 2)
+    }
+    return name.slice(0, 2).toUpperCase()
+  }
+
+  const getUserDisplayName = () => {
+    if (!user) return "Usuario"
+    return user.user_metadata?.full_name || user.email?.split("@")[0] || "Usuario"
   }
 
   return (
@@ -34,15 +62,15 @@ export function DashboardHeader() {
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" className="relative h-10 w-10 rounded-full">
               <Avatar>
-                <AvatarFallback className="bg-primary text-primary-foreground">JD</AvatarFallback>
+                <AvatarFallback className="bg-primary text-primary-foreground">{getUserInitials()}</AvatarFallback>
               </Avatar>
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent className="w-56" align="end" forceMount>
             <DropdownMenuLabel className="font-normal">
               <div className="flex flex-col gap-1">
-                <p className="text-sm font-medium leading-none">Juan Pérez</p>
-                <p className="text-xs leading-none text-muted-foreground">juan@framefix.com</p>
+                <p className="text-sm font-medium leading-none">{getUserDisplayName()}</p>
+                <p className="text-xs leading-none text-muted-foreground">{user?.email || ""}</p>
               </div>
             </DropdownMenuLabel>
             <DropdownMenuSeparator />

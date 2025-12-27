@@ -1,11 +1,12 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect, Suspense } from "react"
+import { useSearchParams } from "next/navigation"
 import { DashboardHeader } from "@/components/dashboard-header"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { ArrowLeft, Download, CheckCircle2, Package } from "lucide-react"
+import { ArrowLeft, Download, CheckCircle2, Package, Loader2 } from "lucide-react"
 import Link from "next/link"
 import { FramePreview } from "@/components/frame-preview"
 import {
@@ -16,70 +17,137 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog"
+import { getBatchById, getImagesByBatchId } from "@/lib/supabase/queries"
+import type { Database } from "@/lib/supabase/types"
 
-// Mock processed images data
-const mockProcessedImages = [
-  {
-    id: "img-001",
-    originalName: "foto-1.jpg",
-    preview: "/portrait-photo-person.png",
-    aspectRatio: 2 / 3,
-    processed: true,
-  },
-  {
-    id: "img-002",
-    originalName: "foto-2.jpg",
-    preview: "/vast-mountain-valley.png",
-    aspectRatio: 2 / 3,
-    processed: true,
-  },
-  {
-    id: "img-003",
-    originalName: "foto-3.jpg",
-    preview: "/diverse-family-portrait.png",
-    aspectRatio: 2 / 3,
-    processed: true,
-  },
-  {
-    id: "img-004",
-    originalName: "foto-4.jpg",
-    preview: "/nature-photography-collection.png",
-    aspectRatio: 2 / 3,
-    processed: true,
-  },
-  {
-    id: "img-005",
-    originalName: "foto-5.jpg",
-    preview: "/vibrant-urban-cityscape.png",
-    aspectRatio: 2 / 3,
-    processed: true,
-  },
-  {
-    id: "img-006",
-    originalName: "foto-6.jpg",
-    preview: "/romantic-outdoor-wedding.png",
-    aspectRatio: 2 / 3,
-    processed: true,
-  },
-]
+type ImageRecord = Database['public']['Tables']['images']['Row']
+type BatchRecord = Database['public']['Tables']['batches']['Row']
 
-export default function ResultsPage() {
-  const [selectedImage, setSelectedImage] = useState<(typeof mockProcessedImages)[0] | null>(null)
+interface ProcessedImage {
+  id: string
+  originalName: string
+  preview: string
+  aspectRatio: number
+  processed: boolean
+  status: string
+}
+
+function ResultsContent() {
+  const searchParams = useSearchParams()
+  const batchId = searchParams.get('batch')
+  
+  const [batch, setBatch] = useState<BatchRecord | null>(null)
+  const [images, setImages] = useState<ProcessedImage[]>([])
+  const [selectedImage, setSelectedImage] = useState<ProcessedImage | null>(null)
   const [isDownloading, setIsDownloading] = useState(false)
+  const [isLoading, setIsLoading] = useState(true)
 
-  const handleDownloadImage = (imageId: string, imageName: string) => {
-    console.log(`Downloading image: ${imageId}`)
-    alert(`Descargando ${imageName}...`)
+  useEffect(() => {
+    if (batchId) {
+      loadBatchData()
+    } else {
+      setIsLoading(false)
+    }
+  }, [batchId])
+
+  const loadBatchData = async () => {
+    if (!batchId) return
+    
+    try {
+      const [batchData, imagesData] = await Promise.all([
+        getBatchById(batchId),
+        getImagesByBatchId(batchId)
+      ])
+      
+      setBatch(batchData)
+      
+      // Transform images to display format
+      const processedImages: ProcessedImage[] = imagesData.map((img, index) => ({
+        id: img.id,
+        originalName: `foto-${index + 1}.jpg`,
+        preview: img.processed_url || img.original_url || "/placeholder.svg",
+        aspectRatio: 2 / 3, // Default aspect ratio
+        processed: img.status === 'completed',
+        status: img.status
+      }))
+      
+      setImages(processedImages)
+    } catch (error) {
+      console.error("Error cargando datos del lote:", error)
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const handleDownloadImage = async (imageId: string, imageName: string) => {
+    const image = images.find(img => img.id === imageId)
+    if (!image) return
+    
+    try {
+      const response = await fetch(image.preview)
+      const blob = await response.blob()
+      const url = window.URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = imageName
+      document.body.appendChild(a)
+      a.click()
+      window.URL.revokeObjectURL(url)
+      document.body.removeChild(a)
+    } catch (error) {
+      console.error("Error descargando imagen:", error)
+      alert("Error al descargar la imagen")
+    }
   }
 
   const handleDownloadAll = async () => {
     setIsDownloading(true)
 
-    // Simulate download
-    await new Promise((resolve) => setTimeout(resolve, 2000))
+    try {
+      // For now, download images one by one
+      // In production, you'd want to create a ZIP on the server
+      for (const image of images) {
+        await handleDownloadImage(image.id, image.originalName)
+        // Small delay between downloads
+        await new Promise(resolve => setTimeout(resolve, 500))
+      }
+    } catch (error) {
+      console.error("Error descargando imágenes:", error)
+    } finally {
+      setIsDownloading(false)
+    }
+  }
 
-    alert("Descargando ZIP con todas las imágenes procesadas...")
-    setIsDownloading(false)
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-background">
+        <DashboardHeader />
+        <main className="container mx-auto p-6 flex items-center justify-center">
+          <Loader2 className="h-8 w-8 animate-spin" />
+        </main>
+      </div>
+    )
+  }
+
+  if (!batchId || !batch) {
+    return (
+      <div className="min-h-screen bg-background">
+        <DashboardHeader />
+        <main className="container mx-auto p-6 space-y-6">
+          <Link href="/dashboard">
+            <Button variant="ghost" className="gap-2">
+              <ArrowLeft className="h-4 w-4" />
+              Volver al Dashboard
+            </Button>
+          </Link>
+          <Card>
+            <CardContent className="pt-6 text-center">
+              <p className="text-muted-foreground">Lote no encontrado</p>
+            </CardContent>
+          </Card>
+        </main>
+      </div>
+    )
   }
 
   return (
@@ -105,7 +173,7 @@ export default function ResultsPage() {
               <div className="flex-1">
                 <h3 className="font-semibold text-lg">Procesamiento Completado</h3>
                 <p className="text-sm text-muted-foreground">
-                  {mockProcessedImages.length} imágenes han sido procesadas y escaladas exitosamente
+                  {images.length} imágenes han sido procesadas y escaladas exitosamente
                 </p>
               </div>
               <Button onClick={handleDownloadAll} disabled={isDownloading} className="gap-2">
@@ -121,8 +189,8 @@ export default function ResultsPage() {
           <CardHeader>
             <div className="flex items-center justify-between">
               <div>
-                <CardTitle>Lote LOTE-005</CardTitle>
-                <CardDescription>Procesado el {new Date().toLocaleDateString("es-ES")}</CardDescription>
+                <CardTitle className="font-mono text-sm">Lote {batchId?.slice(0, 8)}...</CardTitle>
+                <CardDescription>Procesado el {new Date(batch.created_at).toLocaleDateString("es-ES")}</CardDescription>
               </div>
               <Badge variant="secondary" className="bg-green-500/10 text-green-700 dark:text-green-400">
                 <CheckCircle2 className="h-3 w-3 mr-1" />
@@ -139,50 +207,56 @@ export default function ResultsPage() {
             <CardDescription>Haz clic en una imagen para ver la previsualización completa con marco</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-              {mockProcessedImages.map((image) => (
-                <div key={image.id} className="group relative">
-                  <Dialog>
-                    <DialogTrigger asChild>
-                      <button
-                        className="w-full rounded-lg overflow-hidden border-2 border-border hover:border-primary transition-colors"
-                        onClick={() => setSelectedImage(image)}
-                      >
-                        <div className="aspect-[2/3] bg-muted">
-                          <img
-                            src={image.preview || "/placeholder.svg"}
-                            alt={image.originalName}
-                            className="w-full h-full object-cover"
-                          />
+            {images.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-8 text-center">
+                <p className="text-muted-foreground">No hay imágenes en este lote</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                {images.map((image) => (
+                  <div key={image.id} className="group relative">
+                    <Dialog>
+                      <DialogTrigger asChild>
+                        <button
+                          className="w-full rounded-lg overflow-hidden border-2 border-border hover:border-primary transition-colors"
+                          onClick={() => setSelectedImage(image)}
+                        >
+                          <div className="aspect-[2/3] bg-muted">
+                            <img
+                              src={image.preview || "/placeholder.svg"}
+                              alt={image.originalName}
+                              className="w-full h-full object-cover"
+                            />
+                          </div>
+                        </button>
+                      </DialogTrigger>
+                      <DialogContent className="max-w-2xl">
+                        <DialogHeader>
+                          <DialogTitle>{image.originalName}</DialogTitle>
+                          <DialogDescription>Previsualización con marco de 3 capas</DialogDescription>
+                        </DialogHeader>
+                        <div className="mt-4">
+                          <FramePreview imageSrc={image.preview} imageId={image.id} aspectRatio={image.aspectRatio} />
                         </div>
-                      </button>
-                    </DialogTrigger>
-                    <DialogContent className="max-w-2xl">
-                      <DialogHeader>
-                        <DialogTitle>{image.originalName}</DialogTitle>
-                        <DialogDescription>Previsualización con marco de 3 capas</DialogDescription>
-                      </DialogHeader>
-                      <div className="mt-4">
-                        <FramePreview imageSrc={image.preview} imageId={image.id} aspectRatio={image.aspectRatio} />
-                      </div>
-                    </DialogContent>
-                  </Dialog>
+                      </DialogContent>
+                    </Dialog>
 
-                  <div className="mt-2 space-y-2">
-                    <p className="text-xs text-muted-foreground truncate">{image.originalName}</p>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="w-full gap-2 bg-transparent"
-                      onClick={() => handleDownloadImage(image.id, image.originalName)}
-                    >
-                      <Download className="h-3 w-3" />
-                      Descargar
-                    </Button>
+                    <div className="mt-2 space-y-2">
+                      <p className="text-xs text-muted-foreground truncate">{image.originalName}</p>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="w-full gap-2 bg-transparent"
+                        onClick={() => handleDownloadImage(image.id, image.originalName)}
+                      >
+                        <Download className="h-3 w-3" />
+                        Descargar
+                      </Button>
+                    </div>
                   </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
           </CardContent>
         </Card>
 
@@ -195,15 +269,15 @@ export default function ResultsPage() {
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <div className="space-y-1">
                 <p className="text-sm text-muted-foreground">Total Imágenes</p>
-                <p className="text-2xl font-bold">{mockProcessedImages.length}</p>
+                <p className="text-2xl font-bold">{images.length}</p>
               </div>
               <div className="space-y-1">
                 <p className="text-sm text-muted-foreground">Proporción</p>
                 <p className="text-2xl font-bold">2:3</p>
               </div>
               <div className="space-y-1">
-                <p className="text-sm text-muted-foreground">Escaladas</p>
-                <p className="text-2xl font-bold">{mockProcessedImages.filter((i) => i.processed).length}</p>
+                <p className="text-sm text-muted-foreground">Procesadas</p>
+                <p className="text-2xl font-bold">{images.filter((i) => i.processed).length}</p>
               </div>
               <div className="space-y-1">
                 <p className="text-sm text-muted-foreground">Estado</p>
@@ -216,5 +290,24 @@ export default function ResultsPage() {
         </Card>
       </main>
     </div>
+  )
+}
+
+function ResultsLoading() {
+  return (
+    <div className="min-h-screen bg-background">
+      <DashboardHeader />
+      <main className="container mx-auto p-6 flex items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin" />
+      </main>
+    </div>
+  )
+}
+
+export default function ResultsPage() {
+  return (
+    <Suspense fallback={<ResultsLoading />}>
+      <ResultsContent />
+    </Suspense>
   )
 }
