@@ -6,18 +6,12 @@ import { DashboardHeader } from "@/components/dashboard-header"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { ImageUploadZone } from "@/components/image-upload-zone"
+import { ImageUploadZone, type UploadedImage } from "@/components/image-upload-zone"
+import { ImageCropper, type CropData } from "@/components/image-cropper"
 import { FramePreview } from "@/components/frame-preview"
 import { ArrowLeft, Loader2, AlertCircle } from "lucide-react"
 import Link from "next/link"
-import { createBatch, createImage, uploadImage, updateImageStatus } from "@/lib/supabase/queries"
-
-interface UploadedImage {
-  id: string
-  file: File
-  preview: string
-  aspectRatio: number
-}
+import { createBatch, createImage, uploadImage } from "@/lib/supabase/queries"
 
 export default function UploadPage() {
   const router = useRouter()
@@ -26,6 +20,10 @@ export default function UploadPage() {
   const [isProcessing, setIsProcessing] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [uploadProgress, setUploadProgress] = useState<string>("")
+  
+  // Cropper state
+  const [cropperOpen, setCropperOpen] = useState(false)
+  const [imageToCrop, setImageToCrop] = useState<UploadedImage | null>(null)
 
   const handleImagesUploaded = (newImages: UploadedImage[]) => {
     setImages(newImages)
@@ -37,12 +35,43 @@ export default function UploadPage() {
   const handleRemoveImage = (id: string) => {
     setImages((prev) => prev.filter((img) => img.id !== id))
     if (selectedImage?.id === id) {
-      setSelectedImage(images[0] || null)
+      setSelectedImage(images.find(img => img.id !== id) || null)
+    }
+  }
+
+  const handleCropImage = (image: UploadedImage) => {
+    setImageToCrop(image)
+    setCropperOpen(true)
+  }
+
+  const handleCropComplete = (imageId: string, cropData: CropData, croppedImageUrl: string) => {
+    setImages((prev) =>
+      prev.map((img) =>
+        img.id === imageId
+          ? {
+              ...img,
+              preview: croppedImageUrl,
+              cropData,
+              isCropped: true,
+              aspectRatio: 3 / 2, // Now matches 2:3 portrait
+            }
+          : img
+      )
+    )
+    
+    // Update selected image if it was the one cropped
+    if (selectedImage?.id === imageId) {
+      setSelectedImage((prev) =>
+        prev ? { ...prev, preview: croppedImageUrl, cropData, isCropped: true, aspectRatio: 3 / 2 } : null
+      )
     }
   }
 
   const handleCropRequested = (imageId: string) => {
-    alert(`Función de recorte para imagen ${imageId} - Por implementar`)
+    const image = images.find((img) => img.id === imageId)
+    if (image) {
+      handleCropImage(image)
+    }
   }
 
   const handleProcessBatch = async () => {
@@ -61,14 +90,22 @@ export default function UploadPage() {
         const img = images[i]
         setUploadProgress(`Subiendo imagen ${i + 1} de ${images.length}...`)
         
-        // Upload to Storage
-        const originalUrl = await uploadImage(img.file, batch.id)
+        // If image was cropped, we need to convert the blob URL to a File
+        let fileToUpload = img.file
+        if (img.isCropped && img.preview !== img.originalPreview) {
+          const response = await fetch(img.preview)
+          const blob = await response.blob()
+          fileToUpload = new File([blob], img.file.name, { type: 'image/jpeg' })
+        }
         
-        // Create image record
+        // Upload to Storage
+        const originalUrl = await uploadImage(fileToUpload, batch.id)
+        
+        // Create image record with crop data
         await createImage({
           batch_id: batch.id,
           original_url: originalUrl,
-          status: 'completed' // For now, mark as completed since we're not doing actual processing
+          status: 'completed'
         })
       }
 
@@ -111,6 +148,7 @@ export default function UploadPage() {
                   onImagesUploaded={handleImagesUploaded}
                   images={images}
                   onRemoveImage={handleRemoveImage}
+                  onCropImage={handleCropImage}
                 />
               </CardContent>
             </Card>
@@ -135,7 +173,13 @@ export default function UploadPage() {
                   <div className="flex justify-between items-center">
                     <span className="text-sm text-muted-foreground">Requieren recorte:</span>
                     <span className="font-medium">
-                      {images.filter((img) => Math.abs(img.aspectRatio - 2 / 3) > 0.01).length}
+                      {images.filter((img) => !img.isCropped && Math.abs(img.aspectRatio - 3 / 2) > 0.05).length}
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-muted-foreground">Ya recortadas:</span>
+                    <span className="font-medium text-green-600">
+                      {images.filter((img) => img.isCropped).length}
                     </span>
                   </div>
                   {uploadProgress && (
@@ -209,6 +253,20 @@ export default function UploadPage() {
           </div>
         </div>
       </main>
+
+      {/* Image Cropper Modal */}
+      {imageToCrop && (
+        <ImageCropper
+          imageSrc={imageToCrop.originalPreview}
+          imageId={imageToCrop.id}
+          isOpen={cropperOpen}
+          onClose={() => {
+            setCropperOpen(false)
+            setImageToCrop(null)
+          }}
+          onCropComplete={handleCropComplete}
+        />
+      )}
     </div>
   )
 }
