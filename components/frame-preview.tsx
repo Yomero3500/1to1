@@ -33,10 +33,8 @@ export function FramePreview({ imageSrc, imageId, aspectRatio = 2 / 3, onCropReq
             {/* Overlay to soften the middle frame image */}
             <div className="absolute inset-0 bg-white/30 backdrop-blur-[2px]" />
             
-            {/* Inner white border around photo */}
-            <div className="relative bg-white p-2 shadow-inner">
-              {/* Layer 3: Photo container with 2:3 aspect ratio */}
-              <div className="relative bg-muted overflow-hidden" style={{ aspectRatio: "2/3" }}>
+            {/* Layer 3: Photo container with 2:3 aspect ratio */}
+            <div className="relative bg-muted overflow-hidden" style={{ aspectRatio: "2/3" }}>
                 <img
                   src={imageSrc || "/placeholder.svg"}
                   alt={`Preview ${imageId}`}
@@ -55,7 +53,6 @@ export function FramePreview({ imageSrc, imageId, aspectRatio = 2 / 3, onCropReq
                     </div>
                   </div>
                 )}
-              </div>
             </div>
           </div>
         </div>

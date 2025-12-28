@@ -49,8 +49,14 @@ export default function DashboardPage() {
     }
   }
 
+  const [isCreating, setIsCreating] = useState(false)
+
   const handleCreateBatch = () => {
-    router.push("/upload")
+    setIsCreating(true)
+    // Small delay for animation before navigation
+    setTimeout(() => {
+      router.push("/upload")
+    }, 300)
   }
 
   const handleViewBatch = (batchId: string) => {
@@ -106,9 +112,18 @@ export default function DashboardPage() {
                 <CardTitle>Lotes de Impresión</CardTitle>
                 <CardDescription>Gestiona y descarga tus lotes de fotos procesadas</CardDescription>
               </div>
-              <Button onClick={handleCreateBatch} size="default" className="gap-2">
-                <Plus className="h-4 w-4" />
-                Crear Nuevo Lote
+              <Button 
+                onClick={handleCreateBatch} 
+                size="default" 
+                className={`gap-2 transition-all duration-300 ${isCreating ? 'scale-95 opacity-70' : 'hover:scale-105'}`}
+                disabled={isCreating}
+              >
+                {isCreating ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Plus className="h-4 w-4" />
+                )}
+                {isCreating ? 'Creando...' : 'Crear Nuevo Lote'}
               </Button>
             </div>
           </CardHeader>
