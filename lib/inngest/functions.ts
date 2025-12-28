@@ -65,7 +65,7 @@ export const processImageFlow = inngest.createFunction(
 
     // Step B: Upscaling con Topaz (opcional, skip si TOPAZ_API_KEY no está configurada)
     const upscaleResult = await step.run("upscale-with-topaz", async () => {
-      const topazApiKey = process.env.TOPAZ_API_KEY || process.env.GIGAPIXEL_API_KEY;
+      const topazApiKey = process.env.TOPAZ_API_KEY;
       
       if (!topazApiKey) {
         console.log(`[${imageId}] Topaz API no configurada, saltando upscaling...`);

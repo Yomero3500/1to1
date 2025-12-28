@@ -12,8 +12,7 @@ export async function upscaleWithTopaz(
   imageUrl: string,
   scaleFactor: number = 2
 ): Promise<TopazUpscaleResult> {
-  // Soportar ambas variables de entorno
-  const apiKey = process.env.TOPAZ_API_KEY || process.env.GIGAPIXEL_API_KEY;
+  const apiKey = process.env.TOPAZ_API_KEY;
   
   if (!apiKey) {
     throw new Error("TOPAZ_API_KEY no está configurada");

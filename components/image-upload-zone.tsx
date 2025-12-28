@@ -4,10 +4,11 @@ import type React from "react"
 
 import { useCallback, useState } from "react"
 import { Card } from "@/components/ui/card"
-import { Upload, X, Crop, Check } from "lucide-react"
+import { Upload, X, Crop, Check, Sparkles, Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import type { CropData } from "@/components/image-cropper"
+import { analyzeImage, type ImageAnalysis } from "@/lib/ai/analyze-image"
 
 export interface UploadedImage {
   id: string
@@ -17,6 +18,8 @@ export interface UploadedImage {
   aspectRatio: number
   cropData?: CropData
   isCropped: boolean
+  aiAnalysis?: ImageAnalysis
+  isAnalyzing?: boolean
 }
 
 interface ImageUploadZoneProps {
@@ -24,10 +27,61 @@ interface ImageUploadZoneProps {
   images: UploadedImage[]
   onRemoveImage: (id: string) => void
   onCropImage: (image: UploadedImage) => void
+  onAnalysisComplete?: (imageId: string, analysis: ImageAnalysis) => void
 }
 
-export function ImageUploadZone({ onImagesUploaded, images, onRemoveImage, onCropImage }: ImageUploadZoneProps) {
+export function ImageUploadZone({ onImagesUploaded, images, onRemoveImage, onCropImage, onAnalysisComplete }: ImageUploadZoneProps) {
   const [isDragging, setIsDragging] = useState(false)
+
+  // Función para convertir File a base64
+  const fileToBase64 = useCallback((file: File): Promise<{ base64: string; mimeType: string }> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader()
+      reader.onload = () => {
+        const result = reader.result as string
+        // Eliminar el prefijo "data:image/jpeg;base64,"
+        const base64 = result.split(",")[1]
+        resolve({ base64, mimeType: file.type })
+      }
+      reader.onerror = reject
+      reader.readAsDataURL(file)
+    })
+  }, [])
+
+  // Función para analizar imagen con IA
+  const analyzeImageWithAI = useCallback(async (image: UploadedImage, allImages: UploadedImage[]) => {
+    try {
+      const { base64, mimeType } = await fileToBase64(image.file)
+      const result = await analyzeImage(base64, mimeType)
+      
+      if (result.success && result.data) {
+        // Actualizar el estado de la imagen con los resultados
+        const updatedImages = allImages.map(img => 
+          img.id === image.id 
+            ? { ...img, aiAnalysis: result.data, isAnalyzing: false }
+            : img
+        )
+        onImagesUploaded(updatedImages)
+        onAnalysisComplete?.(image.id, result.data)
+      } else {
+        // En caso de error, solo quitar el estado de análisis
+        const updatedImages = allImages.map(img => 
+          img.id === image.id 
+            ? { ...img, isAnalyzing: false }
+            : img
+        )
+        onImagesUploaded(updatedImages)
+      }
+    } catch (error) {
+      console.error("Error analizando imagen:", error)
+      const updatedImages = allImages.map(img => 
+        img.id === image.id 
+          ? { ...img, isAnalyzing: false }
+          : img
+      )
+      onImagesUploaded(updatedImages)
+    }
+  }, [fileToBase64, onImagesUploaded, onAnalysisComplete])
 
   const processFiles = useCallback(
     (files: FileList | null) => {
@@ -49,12 +103,19 @@ export function ImageUploadZone({ onImagesUploaded, images, onRemoveImage, onCro
               originalPreview: preview,
               aspectRatio,
               isCropped: false,
+              isAnalyzing: true, // Marcar como analizando
             }
 
             newImages.push(uploadedImage)
 
             if (newImages.length === Array.from(files).filter((f) => f.type.startsWith("image/")).length) {
-              onImagesUploaded([...images, ...newImages])
+              const allImages = [...images, ...newImages]
+              onImagesUploaded(allImages)
+              
+              // Iniciar análisis de IA para cada nueva imagen
+              newImages.forEach(newImg => {
+                analyzeImageWithAI(newImg, allImages)
+              })
             }
           }
 
@@ -62,7 +123,7 @@ export function ImageUploadZone({ onImagesUploaded, images, onRemoveImage, onCro
         }
       })
     },
-    [images, onImagesUploaded],
+    [images, onImagesUploaded, analyzeImageWithAI],
   )
 
   const handleDrop = useCallback(
@@ -133,12 +194,37 @@ export function ImageUploadZone({ onImagesUploaded, images, onRemoveImage, onCro
                         Recortada
                       </Badge>
                     )}
-                    {needsCrop && (
+                    {needsCrop && !image.isAnalyzing && (
                       <Badge className="absolute bottom-2 left-2 bg-yellow-500/90 text-white text-xs">
                         Requiere recorte
                       </Badge>
                     )}
+                    
+                    {/* AI Analysis Skeleton/Status */}
+                    {image.isAnalyzing && (
+                      <div className="absolute inset-0 bg-black/60 flex flex-col items-center justify-center">
+                        <Loader2 className="h-6 w-6 text-white animate-spin mb-2" />
+                        <span className="text-white text-xs font-medium">IA Analizando iluminación...</span>
+                      </div>
+                    )}
+                    
+                    {/* AI Analysis Complete Badge */}
+                    {image.aiAnalysis && !image.isAnalyzing && (
+                      <Badge className="absolute top-2 left-2 bg-purple-500/90 text-white text-xs">
+                        <Sparkles className="h-3 w-3 mr-1" />
+                        IA Analizada
+                      </Badge>
+                    )}
                   </div>
+                  
+                  {/* AI Suggestions (shown below image when analyzed) */}
+                  {image.aiAnalysis && !image.isAnalyzing && (
+                    <div className="p-2 bg-muted/50 text-xs">
+                      <p className="text-muted-foreground truncate" title={image.aiAnalysis.suggestions}>
+                        {image.aiAnalysis.suggestions}
+                      </p>
+                    </div>
+                  )}
                 </Card>
                 
                 {/* Action Buttons */}
