@@ -2,7 +2,7 @@ import { inngest, type ImageProcessEvent, type GeminiAnalysisResult } from "./cl
 import { analyzeImageWithGemini } from "./gemini-analysis";
 import { upscaleWithTopaz } from "./topaz-upscale";
 import { processFrameWithSharp } from "./frame-processing";
-import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/server";
 
 /**
  * Función principal de Inngest para procesar imágenes.
@@ -26,7 +26,7 @@ export const processImageFlow = inngest.createFunction(
       
       try {
         if (eventData?.imageId) {
-          const supabase = await createClient();
+          const supabase = createAdminClient();
           await supabase
             .from("images")
             .update({ 
@@ -50,7 +50,7 @@ export const processImageFlow = inngest.createFunction(
     // Actualizar estado a "processing"
     await step.run("update-status-processing", async () => {
       console.log(`[Inngest][${imageId}] Actualizando estado a 'processing'...`);
-      const supabase = await createClient();
+      const supabase = createAdminClient();
       const { error } = await supabase
         .from("images")
         .update({ status: "processing" })
@@ -149,7 +149,7 @@ export const processImageFlow = inngest.createFunction(
 
     // Step D: Persistencia en Supabase
     const persistResult = await step.run("persist-to-supabase", async () => {
-      const supabase = await createClient();
+      const supabase = createAdminClient();
       
       // Reconstruir Buffer desde base64
       const imageBuffer = Buffer.from(frameResult.framedImageBase64, "base64");
