@@ -153,10 +153,17 @@ function applyColorAdjustments(
   // -100 → 0, 0 → 1.0, 100 → 2.0
   const saturation = 1 + (adjustments.saturation / 100);
 
-  // Aplicar modulación básica
+  // Hue para temperatura de color (warmth)
+  // warmth positivo = más cálido (tonos hacia amarillo/rojo) = hue negativo
+  // warmth negativo = más frío (tonos hacia azul) = hue positivo
+  // Sharp hue va de -180 a 180
+  const hueShift = -(adjustments.warmth * 0.15); // Convertir -100..100 a aproximadamente -15..15 grados
+
+  // Aplicar modulación con brillo, saturación y hue
   image = image.modulate({
     brightness: Math.max(0.5, Math.min(2, brightness)),
     saturation: Math.max(0, Math.min(2, saturation)),
+    hue: Math.round(hueShift),
   });
 
   // Aplicar contraste usando linear
@@ -170,26 +177,18 @@ function applyColorAdjustments(
     );
   }
 
-  // Aplicar temperatura de color (warmth) mediante tint
-  // Esto es una aproximación usando gamma por canal
-  if (adjustments.warmth !== 0) {
-    const warmthFactor = adjustments.warmth / 100;
+  // Aplicar gamma general para ajustar sombras/highlights
+  // gamma < 1 no es válido, así que usamos gamma >= 1.0
+  // Valores más altos oscurecen medios tonos, valores cercanos a 1 son neutros
+  if (adjustments.shadows !== 0 || adjustments.highlights !== 0) {
+    // Combinar shadows y highlights en un ajuste de gamma general
+    // shadows positivo = aclarar sombras = gamma menor (más cerca de 1)
+    // shadows negativo = oscurecer sombras = gamma mayor
+    const shadowEffect = -(adjustments.shadows / 200); // -0.5 a 0.5
+    const gammaValue = Math.max(1.0, Math.min(3.0, 1.0 + shadowEffect + 0.5));
     
-    if (warmthFactor > 0) {
-      // Más cálido: aumentar rojos/amarillos, reducir azules
-      image = image.gamma(
-        1 - (warmthFactor * 0.1),  // Rojo: gamma menor = más brillante
-        1,                          // Verde: neutro
-        1 + (warmthFactor * 0.15)  // Azul: gamma mayor = más oscuro
-      );
-    } else {
-      // Más frío: aumentar azules, reducir rojos
-      const coolFactor = Math.abs(warmthFactor);
-      image = image.gamma(
-        1 + (coolFactor * 0.15),  // Rojo: gamma mayor = más oscuro
-        1,                         // Verde: neutro
-        1 - (coolFactor * 0.1)    // Azul: gamma menor = más brillante
-      );
+    if (gammaValue !== 1.0) {
+      image = image.gamma(gammaValue);
     }
   }
 
