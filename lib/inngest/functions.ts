@@ -76,20 +76,16 @@ export const processImageFlow = inngest.createFunction(
       return analysis;
     });
 
-    // Step B: Upscaling con Topaz (opcional, skip si TOPAZ_API_KEY no está configurada)
+    // Step B: Upscaling con Topaz + subir a Storage intermedio
     const upscaleResult = await step.run("upscale-with-topaz", async () => {
       const topazApiKey = process.env.TOPAZ_API_KEY;
+      const supabase = createAdminClient();
       
       if (!topazApiKey) {
         console.log(`[${imageId}] Topaz API no configurada, saltando upscaling...`);
         return {
           upscaledUrl: originalUrl,
           skipped: true,
-          originalWidth: 0,
-          originalHeight: 0,
-          newWidth: 0,
-          newHeight: 0,
-          scaleFactor: 1,
         };
       }
 
@@ -97,72 +93,83 @@ export const processImageFlow = inngest.createFunction(
       
       const result = await upscaleWithTopaz(originalUrl, 4);
       
-      if (result.upscaledImageBase64) {
-        console.log(`[${imageId}] Upscaling completado: imagen recibida en base64 (${result.upscaledImageBase64.length} chars)`);
-      } else {
-        console.log(`[${imageId}] Upscaling completado: ${result.originalWidth}x${result.originalHeight} → ${result.newWidth}x${result.newHeight}`);
+      if (!result.upscaledImageBase64) {
+        console.log(`[${imageId}] Topaz no devolvió imagen, usando original`);
+        return {
+          upscaledUrl: originalUrl,
+          skipped: true,
+        };
       }
+
+      // Subir imagen upscaled a Storage inmediatamente para evitar pasar base64 entre steps
+      const upscaledBuffer = Buffer.from(result.upscaledImageBase64, "base64");
+      const upscaledFileName = `${userId}/${batchId}/${imageId}_upscaled.jpg`;
       
-      return { ...result, skipped: false };
+      console.log(`[${imageId}] Subiendo imagen upscaled a Storage (${upscaledBuffer.byteLength} bytes)...`);
+      
+      const { error: uploadError } = await supabase.storage
+        .from("images")
+        .upload(upscaledFileName, upscaledBuffer, {
+          contentType: "image/jpeg",
+          upsert: true,
+        });
+
+      if (uploadError) {
+        console.error(`[${imageId}] Error subiendo imagen upscaled:`, uploadError);
+        return {
+          upscaledUrl: originalUrl,
+          skipped: true,
+        };
+      }
+
+      // Obtener signed URL para la imagen upscaled
+      const { data: signedUrlData, error: signedUrlError } = await supabase.storage
+        .from("images")
+        .createSignedUrl(upscaledFileName, 3600); // 1 hora es suficiente para el siguiente step
+
+      if (signedUrlError || !signedUrlData?.signedUrl) {
+        console.error(`[${imageId}] Error obteniendo signed URL:`, signedUrlError);
+        return {
+          upscaledUrl: originalUrl,
+          skipped: true,
+        };
+      }
+
+      console.log(`[${imageId}] ✅ Imagen upscaled guardada en Storage`);
+      
+      return {
+        upscaledUrl: signedUrlData.signedUrl,
+        skipped: false,
+      };
     });
 
-    // Step C: Procesamiento del marco con Sharp
-    const frameResult = await step.run("process-frame-with-sharp", async () => {
-      // Determinar la fuente de la imagen para procesar
-      let imageToProcess: string | Buffer;
+    // Step C: Procesamiento del marco con Sharp + persistencia final
+    // Combinamos Sharp y persistencia en un solo step para evitar pasar base64
+    const finalResult = await step.run("process-and-persist", async () => {
+      const supabase = createAdminClient();
       
-      if (upscaleResult.skipped) {
-        // Si no hubo upscaling, usar la URL original
-        imageToProcess = originalUrl;
-        console.log(`[${imageId}] Usando imagen original (sin upscaling)`);
-      } else if (upscaleResult.upscaledImageBase64) {
-        // Si Topaz devolvió la imagen en base64, convertir a Buffer
-        imageToProcess = Buffer.from(upscaleResult.upscaledImageBase64, "base64");
-        console.log(`[${imageId}] Usando imagen upscaled desde base64`);
-      } else if (upscaleResult.upscaledUrl) {
-        // Si Topaz devolvió una URL
-        imageToProcess = upscaleResult.upscaledUrl;
-        console.log(`[${imageId}] Usando imagen upscaled desde URL`);
-      } else {
-        // Fallback a la imagen original
-        imageToProcess = originalUrl;
-        console.log(`[${imageId}] Fallback a imagen original`);
-      }
+      // Usar la URL upscaled o la original
+      const imageUrl = upscaleResult.upscaledUrl;
+      console.log(`[${imageId}] Procesando imagen desde: ${imageUrl.substring(0, 80)}...`);
 
       console.log(`[${imageId}] Generando marco con ajustes de color...`);
       
       const result = await processFrameWithSharp(
-        imageToProcess,
+        imageUrl,
         colorAnalysis as GeminiAnalysisResult,
         cropData
       );
       
       console.log(`[${imageId}] Marco generado: ${result.width}x${result.height}`);
-      
-      // Convertir Buffer a base64 para paso entre steps
-      return {
-        ...result,
-        framedImageBase64: result.framedImageBuffer.toString("base64"),
-        framedImageBuffer: undefined, // No podemos pasar Buffer entre steps
-      };
-    });
 
-    // Step D: Persistencia en Supabase
-    const persistResult = await step.run("persist-to-supabase", async () => {
-      const supabase = createAdminClient();
+      // Subir imagen final a Storage
+      const finalFileName = `${userId}/${batchId}/${imageId}_framed.jpg`;
       
-      // Reconstruir Buffer desde base64
-      const imageBuffer = Buffer.from(frameResult.framedImageBase64, "base64");
+      console.log(`[${imageId}] Subiendo imagen final a Storage...`);
       
-      // Generar nombre único para el archivo
-      const fileName = `${userId}/${batchId}/${imageId}_framed.jpg`;
-      
-      console.log(`[${imageId}] Subiendo imagen procesada a Storage...`);
-      
-      // Subir a Supabase Storage
-      const { data: uploadData, error: uploadError } = await supabase.storage
+      const { error: uploadError } = await supabase.storage
         .from("images")
-        .upload(fileName, imageBuffer, {
+        .upload(finalFileName, result.framedImageBuffer, {
           contentType: "image/jpeg",
           upsert: true,
         });
@@ -171,19 +178,18 @@ export const processImageFlow = inngest.createFunction(
         throw new Error(`Error subiendo imagen: ${uploadError.message}`);
       }
 
-      // Obtener Signed URL (válida por 1 año) para evitar problemas de permisos
+      // Obtener Signed URL (válida por 1 año)
       const { data: signedUrlData, error: signedUrlError } = await supabase.storage
         .from("images")
-        .createSignedUrl(fileName, 31536000); // 1 año
+        .createSignedUrl(finalFileName, 31536000); // 1 año
 
       let processedUrl: string;
       
       if (signedUrlError || !signedUrlData?.signedUrl) {
-        // Fallback a URL pública si falla
         console.warn(`[${imageId}] Error creando signed URL, usando public URL`);
         const { data: publicUrlData } = supabase.storage
           .from("images")
-          .getPublicUrl(fileName);
+          .getPublicUrl(finalFileName);
         processedUrl = publicUrlData.publicUrl;
       } else {
         processedUrl = signedUrlData.signedUrl;
@@ -206,16 +212,16 @@ export const processImageFlow = inngest.createFunction(
 
       return {
         processedUrl,
-        fileName,
-        width: frameResult.width,
-        height: frameResult.height,
+        fileName: finalFileName,
+        width: result.width,
+        height: result.height,
       };
     });
 
     return {
       success: true,
       imageId,
-      processedUrl: persistResult.processedUrl,
+      processedUrl: finalResult.processedUrl,
       colorAnalysis: {
         brightness: colorAnalysis.brightness,
         contrast: colorAnalysis.contrast,
@@ -224,8 +230,8 @@ export const processImageFlow = inngest.createFunction(
       },
       upscaled: !upscaleResult.skipped,
       dimensions: {
-        width: persistResult.width,
-        height: persistResult.height,
+        width: finalResult.width,
+        height: finalResult.height,
       },
     };
   }
