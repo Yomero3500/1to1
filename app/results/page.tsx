@@ -253,27 +253,17 @@ function ResultsContent() {
     setDownloadProgress(0)
 
     try {
-      // Crear PDF en formato A4 vertical (210 x 297 mm)
-      const pdf = new jsPDF({
-        orientation: "portrait",
-        unit: "mm",
-        format: "a4",
-      })
-
-      const pageWidth = 210
-      const pageHeight = 297
-      const margin = 10
-      const imageWidth = pageWidth - (margin * 2) // 190mm
-      const imageHeight = imageWidth * 1.5 // Proporción 2:3 → 285mm (ajustamos)
+      // Crear PDF con páginas del tamaño exacto de las fotos
+      // Proporción 3:2 horizontal (120x80cm → usamos mm para impresión)
+      // Usamos tamaño A4 landscape adaptado a proporción 3:2
+      const photoWidthMm = 297 // Ancho máximo práctico para impresión
+      const photoHeightMm = photoWidthMm * (2/3) // Proporción 3:2 = 198mm
       
-      // Ajustar altura si excede la página
-      const maxImageHeight = pageHeight - (margin * 2)
-      const finalImageHeight = Math.min(imageHeight, maxImageHeight)
-      const finalImageWidth = finalImageHeight / 1.5 // Mantener proporción
-
-      // Centrar horizontalmente
-      const xOffset = (pageWidth - finalImageWidth) / 2
-      const yOffset = (pageHeight - finalImageHeight) / 2
+      const pdf = new jsPDF({
+        orientation: "landscape",
+        unit: "mm",
+        format: [photoWidthMm, photoHeightMm], // Página exacta al tamaño de la foto
+      })
 
       for (let i = 0; i < completedImages.length; i++) {
         const image = completedImages[i]
@@ -282,7 +272,7 @@ function ResultsContent() {
         try {
           // Agregar nueva página si no es la primera imagen
           if (i > 0) {
-            pdf.addPage()
+            pdf.addPage([photoWidthMm, photoHeightMm], "landscape")
           }
 
           // Descargar imagen y convertir a base64
@@ -295,14 +285,14 @@ function ResultsContent() {
           const blob = await response.blob()
           const base64 = await blobToBase64(blob)
 
-          // Agregar imagen al PDF
+          // Agregar imagen al PDF - ocupa toda la página
           pdf.addImage(
             base64,
             "JPEG",
-            xOffset,
-            yOffset,
-            finalImageWidth,
-            finalImageHeight
+            0,
+            0,
+            photoWidthMm,
+            photoHeightMm
           )
 
           // Actualizar progreso

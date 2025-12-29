@@ -182,7 +182,7 @@ export function ImageCropper({ imageSrc, imageId, isOpen, onClose, onCropComplet
             crop={crop}
             zoom={zoom}
             rotation={rotation}
-            aspect={2 / 3}
+            aspect={3 / 2}
             onCropChange={onCropChange}
             onZoomChange={onZoomChange}
             onCropComplete={onCropCompleteCallback}
@@ -270,7 +270,7 @@ export function ImageCropper({ imageSrc, imageId, isOpen, onClose, onCropComplet
 
           {/* Info */}
           <p className="text-[10px] sm:text-xs text-muted-foreground text-center text-balance">
-            Proporción fija: 2:3 (formato retrato estándar)
+            Proporción fija: 3:2 (formato horizontal para cuadros)
           </p>
         </div>
 

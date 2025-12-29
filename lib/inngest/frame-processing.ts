@@ -1,16 +1,26 @@
 import sharp from "sharp";
 import type { GeminiAnalysisResult, FrameProcessResult } from "./client";
 
-// Configuración del marco
+// Configuración del marco basada en proporciones del usuario
+// Cuadro grande: 120x80 cm (proporción 3:2 horizontal)
+// Cuadro mediano: 90x60 cm (proporción 3:2)
+// Cuadro pequeño: 60x40 cm (proporción 3:2)
 const FRAME_CONFIG = {
   // Tamaño final del marco en píxeles (para impresión a 300dpi)
-  // 20x25cm a 300dpi = 2362x2953 píxeles
-  frameWidth: 2362,
-  frameHeight: 2953,
+  // 120x80cm equivalente a 300dpi sería enorme, usamos tamaño proporcional
+  // Mantenemos proporción 3:2 (horizontal) con tamaño manejable
+  frameWidth: 3600,  // 12 pulgadas * 300dpi
+  frameHeight: 2400, // 8 pulgadas * 300dpi (proporción 3:2)
   
-  // Proporciones del marco (porcentajes)
-  outerFramePercent: 0.08,    // Marco blanco exterior: 8%
-  paspartuPercent: 0.12,       // Paspartú: 12%
+  // Proporciones de los marcos (basadas en las medidas del usuario)
+  // Marco exterior (diferencia entre 120x80 y 90x60): (120-90)/2 = 15cm de cada lado
+  // Como porcentaje de 120: 15/120 = 12.5%
+  outerFramePercent: 0.125,
+  
+  // Paspartú (diferencia entre 90x60 y 60x40): (90-60)/2 = 15cm de cada lado
+  // Como porcentaje de 90: 15/90 = 16.67%
+  // Pero relativo al frame total: ajustamos proporcionalmente
+  paspartuPercent: 0.125,
   
   // Colores
   outerFrameColor: "#FFFFFF",  // Blanco
@@ -73,7 +83,7 @@ export async function processFrameWithSharp(
   const photoAreaWidth = frameWidth - (outerFrameSize * 2) - (paspartuSize * 2);
   const photoAreaHeight = frameHeight - (outerFrameSize * 2) - (paspartuSize * 2);
 
-  // Redimensionar la foto para que encaje en el área disponible (mantener aspecto 2:3)
+  // Redimensionar la foto para que encaje en el área disponible (proporción 3:2)
   const photoBuffer = await image
     .resize(photoAreaWidth, photoAreaHeight, {
       fit: "cover",
@@ -82,24 +92,37 @@ export async function processFrameWithSharp(
     .jpeg({ quality: 95 })
     .toBuffer();
 
-  // Crear el paspartú con la imagen difuminada
+  // Crear el paspartú con un color sólido derivado de la imagen
+  // En lugar de blur que crea sombras, extraemos el color promedio
   const paspartuWidth = photoAreaWidth + (paspartuSize * 2);
   const paspartuHeight = photoAreaHeight + (paspartuSize * 2);
   
-  const blurredPaspartu = await sharp(imageBuffer)
-    .resize(paspartuWidth, paspartuHeight, {
-      fit: "cover",
-      position: "center",
-    })
-    .blur(30) // Difuminar significativamente
-    .modulate({
-      brightness: 0.7, // Oscurecer un poco
-      saturation: 0.8, // Reducir saturación
-    })
+  // Obtener el color promedio de la imagen para el paspartú
+  const { dominant } = await sharp(imageBuffer)
+    .resize(10, 10, { fit: "cover" })
+    .stats();
+  
+  // Oscurecer el color dominante para el paspartú
+  const paspartuColor = {
+    r: Math.round(dominant.r * 0.6),
+    g: Math.round(dominant.g * 0.6),
+    b: Math.round(dominant.b * 0.6),
+  };
+  
+  // Crear paspartú con color sólido
+  const paspartuBuffer = await sharp({
+    create: {
+      width: paspartuWidth,
+      height: paspartuHeight,
+      channels: 3,
+      background: paspartuColor,
+    },
+  })
+    .jpeg({ quality: 95 })
     .toBuffer();
 
   // Componer el paspartú con la foto centrada
-  const paspartuWithPhoto = await sharp(blurredPaspartu)
+  const paspartuWithPhoto = await sharp(paspartuBuffer)
     .composite([
       {
         input: photoBuffer,
@@ -225,13 +248,29 @@ export async function generateFramePreview(
   const paspartuWidth = photoAreaWidth + (paspartuSize * 2);
   const paspartuHeight = photoAreaHeight + (paspartuSize * 2);
 
-  const blurredPaspartu = await sharp(imageBuffer)
-    .resize(paspartuWidth, paspartuHeight, { fit: "cover" })
-    .blur(15)
-    .modulate({ brightness: 0.7, saturation: 0.8 })
+  // Obtener color dominante para el paspartú
+  const { dominant } = await sharp(imageBuffer)
+    .resize(10, 10, { fit: "cover" })
+    .stats();
+  
+  const paspartuColor = {
+    r: Math.round(dominant.r * 0.6),
+    g: Math.round(dominant.g * 0.6),
+    b: Math.round(dominant.b * 0.6),
+  };
+
+  const paspartuBuffer = await sharp({
+    create: {
+      width: paspartuWidth,
+      height: paspartuHeight,
+      channels: 3,
+      background: paspartuColor,
+    },
+  })
+    .jpeg({ quality: 80 })
     .toBuffer();
 
-  const paspartuWithPhoto = await sharp(blurredPaspartu)
+  const paspartuWithPhoto = await sharp(paspartuBuffer)
     .composite([{ input: photoBuffer, top: paspartuSize, left: paspartuSize }])
     .toBuffer();
 

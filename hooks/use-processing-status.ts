@@ -17,7 +17,9 @@ interface UseProcessingStatusOptions {
   batchId: string;
   enabled?: boolean;
   pollingInterval?: number; // ms
+  maxPollingTime?: number; // ms - tiempo máximo de polling antes de parar
   onComplete?: () => void;
+  onTimeout?: () => void;
 }
 
 /**
@@ -43,7 +45,9 @@ export function useProcessingStatus({
   batchId,
   enabled = true,
   pollingInterval = 3000,
+  maxPollingTime = 600000, // 10 minutos por defecto
   onComplete,
+  onTimeout,
 }: UseProcessingStatusOptions) {
   const [status, setStatus] = useState<ProcessingStatus>({
     total: 0,
@@ -56,6 +60,7 @@ export function useProcessingStatus({
   });
   const [isPolling, setIsPolling] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [pollingStartTime, setPollingStartTime] = useState<number | null>(null);
 
   const fetchStatus = useCallback(async () => {
     try {
@@ -90,11 +95,13 @@ export function useProcessingStatus({
   }, [batchId]);
 
   const startPolling = useCallback(() => {
+    setPollingStartTime(Date.now());
     setIsPolling(true);
   }, []);
 
   const stopPolling = useCallback(() => {
     setIsPolling(false);
+    setPollingStartTime(null);
   }, []);
 
   useEffect(() => {
@@ -106,12 +113,22 @@ export function useProcessingStatus({
     const poll = async () => {
       if (isCancelled) return;
 
+      // Verificar timeout
+      if (pollingStartTime && Date.now() - pollingStartTime > maxPollingTime) {
+        console.log(`[ProcessingStatus] ⏱️ Timeout alcanzado después de ${maxPollingTime / 1000}s`);
+        setIsPolling(false);
+        setPollingStartTime(null);
+        onTimeout?.();
+        return;
+      }
+
       console.log(`[ProcessingStatus] Polling estado del batch ${batchId}...`);
       const isComplete = await fetchStatus();
 
       if (isComplete) {
         console.log(`[ProcessingStatus] ✅ Procesamiento completado!`);
         setIsPolling(false);
+        setPollingStartTime(null);
         onComplete?.();
         return;
       }
@@ -128,7 +145,7 @@ export function useProcessingStatus({
       isCancelled = true;
       clearTimeout(timeoutId);
     };
-  }, [enabled, isPolling, pollingInterval, fetchStatus, onComplete]);
+  }, [enabled, isPolling, pollingInterval, maxPollingTime, pollingStartTime, fetchStatus, onComplete, onTimeout, batchId]);
 
   // Fetch inicial
   useEffect(() => {
