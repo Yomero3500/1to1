@@ -95,7 +95,7 @@ export const processImageFlow = inngest.createFunction(
 
       console.log(`[${imageId}] Iniciando upscaling con Topaz...`);
       
-      const result = await upscaleWithTopaz(originalUrl, 2);
+      const result = await upscaleWithTopaz(originalUrl, 4);
       
       if (result.upscaledImageBase64) {
         console.log(`[${imageId}] Upscaling completado: imagen recibida en base64 (${result.upscaledImageBase64.length} chars)`);
