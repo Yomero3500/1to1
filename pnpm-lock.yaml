@@ -191,6 +191,9 @@ importers:
       sonner:
         specifier: ^1.7.4
         version: 1.7.4(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
+      srvx:
+        specifier: latest
+        version: 0.9.8
       tailwind-merge:
         specifier: ^3.3.1
         version: 3.3.1
