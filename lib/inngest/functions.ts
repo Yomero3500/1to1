@@ -21,17 +21,19 @@ export const processImageFlow = inngest.createFunction(
     retries: 3,
     onFailure: async ({ error, event }) => {
       // Actualizar estado a "failed" en caso de error
-      console.error(`Error procesando imagen ${event.data.imageId}:`, error);
+      const eventData = (event as any).data as ImageProcessEvent["data"] | undefined;
+      console.error(`Error procesando imagen ${eventData?.imageId}:`, error);
       
       try {
-        const supabase = await createClient();
-        await supabase
-          .from("images")
-          .update({ 
-            status: "failed",
-            // Podríamos añadir un campo error_message en el futuro
-          })
-          .eq("id", event.data.imageId);
+        if (eventData?.imageId) {
+          const supabase = await createClient();
+          await supabase
+            .from("images")
+            .update({ 
+              status: "failed",
+            })
+            .eq("id", eventData.imageId);
+        }
       } catch (dbError) {
         console.error("Error actualizando estado de fallo:", dbError);
       }
@@ -148,12 +150,23 @@ export const processImageFlow = inngest.createFunction(
         throw new Error(`Error subiendo imagen: ${uploadError.message}`);
       }
 
-      // Obtener URL pública
-      const { data: publicUrlData } = supabase.storage
+      // Obtener Signed URL (válida por 1 año) para evitar problemas de permisos
+      const { data: signedUrlData, error: signedUrlError } = await supabase.storage
         .from("images")
-        .getPublicUrl(fileName);
+        .createSignedUrl(fileName, 31536000); // 1 año
 
-      const processedUrl = publicUrlData.publicUrl;
+      let processedUrl: string;
+      
+      if (signedUrlError || !signedUrlData?.signedUrl) {
+        // Fallback a URL pública si falla
+        console.warn(`[${imageId}] Error creando signed URL, usando public URL`);
+        const { data: publicUrlData } = supabase.storage
+          .from("images")
+          .getPublicUrl(fileName);
+        processedUrl = publicUrlData.publicUrl;
+      } else {
+        processedUrl = signedUrlData.signedUrl;
+      }
 
       // Actualizar registro en la base de datos
       const { error: updateError } = await supabase

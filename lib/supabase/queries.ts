@@ -150,11 +150,22 @@ export async function uploadImage(file: File, batchId: string) {
 
   if (error) throw error
 
-  const { data: { publicUrl } } = supabase.storage
+  // Usar signed URL en lugar de public URL para evitar problemas de permisos
+  // La URL es válida por 1 año (31536000 segundos)
+  const { data: signedUrlData, error: signedUrlError } = await supabase.storage
     .from('images')
-    .getPublicUrl(data.path)
+    .createSignedUrl(data.path, 31536000)
 
-  return publicUrl
+  if (signedUrlError || !signedUrlData?.signedUrl) {
+    // Fallback a URL pública si falla la firma
+    console.warn('Error creando signed URL, usando public URL:', signedUrlError)
+    const { data: { publicUrl } } = supabase.storage
+      .from('images')
+      .getPublicUrl(data.path)
+    return publicUrl
+  }
+
+  return signedUrlData.signedUrl
 }
 
 export async function deleteImageFromStorage(imageUrl: string) {
