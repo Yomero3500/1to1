@@ -23,18 +23,35 @@ export async function analyzeImageWithGemini(
   imageUrl: string
 ): Promise<GeminiAnalysisResult> {
   try {
+    console.log(`[Gemini] Descargando imagen desde: ${imageUrl}`);
+    
     // Descargar la imagen y convertirla a base64
     const response = await fetch(imageUrl);
+    
+    if (!response.ok) {
+      throw new Error(`Error descargando imagen: ${response.status} ${response.statusText}`);
+    }
+    
     const arrayBuffer = await response.arrayBuffer();
     const base64Image = Buffer.from(arrayBuffer).toString("base64");
-    const mimeType = (response.headers.get("content-type") || "image/jpeg") as
-      | "image/jpeg"
-      | "image/png"
-      | "image/gif"
-      | "image/webp";
+    
+    // Detectar el tipo MIME correcto
+    const contentType = response.headers.get("content-type");
+    let mimeType: "image/jpeg" | "image/png" | "image/gif" | "image/webp" = "image/jpeg";
+    
+    if (contentType?.includes("png")) {
+      mimeType = "image/png";
+    } else if (contentType?.includes("gif")) {
+      mimeType = "image/gif";
+    } else if (contentType?.includes("webp")) {
+      mimeType = "image/webp";
+    }
+    
+    console.log(`[Gemini] Imagen descargada: ${arrayBuffer.byteLength} bytes, tipo: ${mimeType}`);
+    console.log(`[Gemini] Enviando a Gemini para análisis...`);
 
     const { object } = await generateObject({
-      model: google("gemini-2.5-flash"),
+      model: google("gemini-2.0-flash"),
       schema: geminiAnalysisSchema,
       messages: [
         {
@@ -64,13 +81,14 @@ Considera:
             },
             {
               type: "image",
-              image: base64Image,
-              mimeType,
+              image: `data:${mimeType};base64,${base64Image}`,
             },
           ],
         },
       ],
     });
+
+    console.log(`[Gemini] ✅ Análisis completado: ${object.recommendation}`);
 
     return {
       brightness: clamp(object.brightness, -100, 100),
@@ -84,7 +102,7 @@ Considera:
     };
   } catch (error) {
     // Si falla, devolver valores neutros
-    console.error("Error en análisis Gemini:", error);
+    console.error("[Gemini] Error en análisis:", error);
     return {
       brightness: 5,
       contrast: 10,

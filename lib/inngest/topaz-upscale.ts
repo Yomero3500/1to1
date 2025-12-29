@@ -1,12 +1,17 @@
 import type { TopazUpscaleResult } from "./client";
 
-const TOPAZ_API_BASE = "https://api.topazlabs.com/v1";
-const POLLING_INTERVAL = 5000; // 5 segundos
-const MAX_POLLING_ATTEMPTS = 60; // 5 minutos máximo
+const TOPAZ_API_URL = "https://api.topazlabs.com/image/v1/enhance";
+const POLLING_INTERVAL = 3000; // 3 segundos
+const MAX_POLLING_ATTEMPTS = 120; // 6 minutos máximo
 
 /**
  * Envía una imagen a Topaz Gigapixel Cloud API para upscaling.
- * Usa polling para esperar el resultado.
+ * Basado en la documentación oficial de Topaz Labs.
+ * 
+ * Modelos disponibles:
+ * - "Standard V2" - Modelo estándar de alta calidad
+ * - "High Fidelity V2" - Mayor fidelidad al original
+ * - "Graphics" - Para gráficos e ilustraciones
  */
 export async function upscaleWithTopaz(
   imageUrl: string,
@@ -15,146 +20,161 @@ export async function upscaleWithTopaz(
   const apiKey = process.env.TOPAZ_API_KEY;
   
   if (!apiKey) {
+    console.log("[Topaz] API Key no configurada, saltando upscaling...");
     throw new Error("TOPAZ_API_KEY no está configurada");
   }
 
-  // Paso 1: Descargar la imagen original
-  const imageResponse = await fetch(imageUrl);
-  const imageBlob = await imageResponse.blob();
-  
-  // Obtener dimensiones originales (estimadas, se actualizarán con la respuesta)
-  const contentLength = imageResponse.headers.get("content-length");
-  
-  // Paso 2: Crear el job de upscaling
-  const formData = new FormData();
-  formData.append("image", imageBlob, "image.jpg");
-  formData.append("scale", scaleFactor.toString());
-  formData.append("model", "standard"); // standard, high-fidelity, or art
-  formData.append("denoise", "auto");
-  formData.append("sharpen", "auto");
-  formData.append("output_format", "jpg");
-  formData.append("output_quality", "95");
+  console.log(`[Topaz] Iniciando upscaling con factor ${scaleFactor}x...`);
+  console.log(`[Topaz] URL de imagen: ${imageUrl}`);
 
-  const createResponse = await fetch(`${TOPAZ_API_BASE}/enhance`, {
-    method: "POST",
-    headers: {
-      "Authorization": `Bearer ${apiKey}`,
-    },
-    body: formData,
-  });
+  try {
+    // Paso 1: Descargar la imagen original
+    console.log("[Topaz] Descargando imagen original...");
+    const imageResponse = await fetch(imageUrl);
+    
+    if (!imageResponse.ok) {
+      throw new Error(`Error descargando imagen: ${imageResponse.status} ${imageResponse.statusText}`);
+    }
+    
+    const imageBuffer = await imageResponse.arrayBuffer();
+    const imageBlob = new Blob([imageBuffer], { type: "image/jpeg" });
+    
+    console.log(`[Topaz] Imagen descargada: ${imageBuffer.byteLength} bytes`);
 
-  if (!createResponse.ok) {
-    const errorText = await createResponse.text();
-    throw new Error(`Error al crear job de Topaz: ${createResponse.status} - ${errorText}`);
-  }
+    // Paso 2: Crear el FormData con los parámetros correctos
+    const formData = new FormData();
+    formData.append("image", imageBlob, "image.jpg");
+    formData.append("model", "Standard V2");
 
-  const createResult = await createResponse.json();
-  const jobId = createResult.job_id || createResult.id;
+    console.log("[Topaz] Enviando imagen a la API...");
 
-  if (!jobId) {
-    // Respuesta inmediata (sin job_id significa resultado directo)
-    if (createResult.result_url || createResult.output_url) {
+    // Paso 3: Enviar a Topaz API
+    const enhanceResponse = await fetch(TOPAZ_API_URL, {
+      method: "POST",
+      headers: {
+        "Accept": "application/json",
+        "X-API-Key": apiKey,
+      },
+      body: formData,
+    });
+
+    console.log(`[Topaz] Respuesta recibida: ${enhanceResponse.status}`);
+
+    if (!enhanceResponse.ok) {
+      const errorText = await enhanceResponse.text();
+      console.error(`[Topaz] Error de API: ${errorText}`);
+      throw new Error(`Error de Topaz API: ${enhanceResponse.status} - ${errorText}`);
+    }
+
+    const result = await enhanceResponse.json();
+    console.log("[Topaz] Respuesta JSON:", JSON.stringify(result, null, 2));
+
+    // Manejar diferentes formatos de respuesta de Topaz
+    // Opción 1: Respuesta inmediata con URL
+    if (result.output_url || result.result_url || result.url) {
+      const upscaledUrl = result.output_url || result.result_url || result.url;
+      console.log(`[Topaz] ✅ Upscaling completado inmediatamente: ${upscaledUrl}`);
+      
       return {
-        upscaledUrl: createResult.result_url || createResult.output_url,
-        originalWidth: createResult.original_width || 0,
-        originalHeight: createResult.original_height || 0,
-        newWidth: createResult.output_width || 0,
-        newHeight: createResult.output_height || 0,
+        upscaledUrl,
+        originalWidth: result.original_width || result.input_width || 0,
+        originalHeight: result.original_height || result.input_height || 0,
+        newWidth: result.output_width || result.width || 0,
+        newHeight: result.output_height || result.height || 0,
         scaleFactor,
       };
     }
-    throw new Error("Respuesta de Topaz inválida: no contiene job_id ni result_url");
-  }
 
-  // Paso 3: Polling para obtener el resultado
+    // Opción 2: Job asíncrono - necesita polling
+    const jobId = result.job_id || result.id || result.request_id;
+    
+    if (jobId) {
+      console.log(`[Topaz] Job creado: ${jobId}, iniciando polling...`);
+      return await pollTopazJob(jobId, apiKey, scaleFactor);
+    }
+
+    // Opción 3: La respuesta es directamente la imagen (base64 o buffer)
+    if (result.image || result.data) {
+      console.log("[Topaz] Respuesta contiene imagen directa, procesando...");
+      throw new Error("Respuesta de imagen directa no implementada todavía");
+    }
+
+    console.error("[Topaz] Respuesta inesperada:", result);
+    throw new Error("Respuesta de Topaz inválida: formato no reconocido");
+
+  } catch (error) {
+    console.error("[Topaz] Error en upscaling:", error);
+    throw error;
+  }
+}
+
+/**
+ * Polling para jobs asíncronos de Topaz
+ */
+async function pollTopazJob(
+  jobId: string, 
+  apiKey: string,
+  scaleFactor: number
+): Promise<TopazUpscaleResult> {
+  const statusUrl = `https://api.topazlabs.com/image/v1/status/${jobId}`;
   let attempts = 0;
-  
+
   while (attempts < MAX_POLLING_ATTEMPTS) {
     await sleep(POLLING_INTERVAL);
     attempts++;
 
-    const statusResponse = await fetch(`${TOPAZ_API_BASE}/jobs/${jobId}`, {
-      headers: {
-        "Authorization": `Bearer ${apiKey}`,
-      },
-    });
+    console.log(`[Topaz] Polling job ${jobId} (intento ${attempts}/${MAX_POLLING_ATTEMPTS})...`);
 
-    if (!statusResponse.ok) {
-      const errorText = await statusResponse.text();
-      throw new Error(`Error al consultar estado del job: ${statusResponse.status} - ${errorText}`);
+    try {
+      const statusResponse = await fetch(statusUrl, {
+        headers: {
+          "Accept": "application/json",
+          "X-API-Key": apiKey,
+        },
+      });
+
+      if (!statusResponse.ok) {
+        console.error(`[Topaz] Error en polling: ${statusResponse.status}`);
+        continue;
+      }
+
+      const statusResult = await statusResponse.json();
+      const status = (statusResult.status || "").toLowerCase();
+
+      console.log(`[Topaz] Estado del job: ${status}`);
+
+      if (status === "completed" || status === "success" || status === "done") {
+        const upscaledUrl = statusResult.output_url || statusResult.result_url || statusResult.url;
+        
+        if (!upscaledUrl) {
+          throw new Error("Job completado pero sin URL de resultado");
+        }
+
+        console.log(`[Topaz] ✅ Job completado: ${upscaledUrl}`);
+        
+        return {
+          upscaledUrl,
+          originalWidth: statusResult.original_width || statusResult.input_width || 0,
+          originalHeight: statusResult.original_height || statusResult.input_height || 0,
+          newWidth: statusResult.output_width || statusResult.width || 0,
+          newHeight: statusResult.output_height || statusResult.height || 0,
+          scaleFactor,
+        };
+      }
+
+      if (status === "failed" || status === "error") {
+        throw new Error(`Job de Topaz falló: ${statusResult.error || statusResult.message || "Error desconocido"}`);
+      }
+
+    } catch (error) {
+      console.error(`[Topaz] Error en polling intento ${attempts}:`, error);
+      if (attempts >= MAX_POLLING_ATTEMPTS / 2) {
+        throw error;
+      }
     }
-
-    const statusResult = await statusResponse.json();
-    const status = statusResult.status?.toLowerCase();
-
-    if (status === "completed" || status === "success") {
-      return {
-        upscaledUrl: statusResult.result_url || statusResult.output_url,
-        originalWidth: statusResult.original_width || 0,
-        originalHeight: statusResult.original_height || 0,
-        newWidth: statusResult.output_width || 0,
-        newHeight: statusResult.output_height || 0,
-        scaleFactor,
-      };
-    }
-
-    if (status === "failed" || status === "error") {
-      throw new Error(`Job de Topaz falló: ${statusResult.error || "Error desconocido"}`);
-    }
-
-    // Continuar polling si está "processing" o "pending"
-    console.log(`Topaz job ${jobId}: ${status} (intento ${attempts}/${MAX_POLLING_ATTEMPTS})`);
   }
 
-  throw new Error(`Timeout esperando resultado de Topaz después de ${MAX_POLLING_ATTEMPTS * POLLING_INTERVAL / 1000} segundos`);
-}
-
-/**
- * Versión alternativa que usa webhook en lugar de polling.
- * Útil cuando Topaz soporta callbacks.
- */
-export async function upscaleWithTopazWebhook(
-  imageUrl: string,
-  webhookUrl: string,
-  scaleFactor: number = 2
-): Promise<{ jobId: string }> {
-  const apiKey = process.env.TOPAZ_API_KEY;
-  
-  if (!apiKey) {
-    throw new Error("TOPAZ_API_KEY no está configurada");
-  }
-
-  const imageResponse = await fetch(imageUrl);
-  const imageBlob = await imageResponse.blob();
-
-  const formData = new FormData();
-  formData.append("image", imageBlob, "image.jpg");
-  formData.append("scale", scaleFactor.toString());
-  formData.append("model", "standard");
-  formData.append("denoise", "auto");
-  formData.append("sharpen", "auto");
-  formData.append("output_format", "jpg");
-  formData.append("output_quality", "95");
-  formData.append("webhook_url", webhookUrl);
-
-  const response = await fetch(`${TOPAZ_API_BASE}/enhance`, {
-    method: "POST",
-    headers: {
-      "Authorization": `Bearer ${apiKey}`,
-    },
-    body: formData,
-  });
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(`Error al crear job de Topaz: ${response.status} - ${errorText}`);
-  }
-
-  const result = await response.json();
-  
-  return {
-    jobId: result.job_id || result.id,
-  };
+  throw new Error(`Timeout esperando resultado de Topaz después de ${(MAX_POLLING_ATTEMPTS * POLLING_INTERVAL) / 1000} segundos`);
 }
 
 function sleep(ms: number): Promise<void> {
