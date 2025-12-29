@@ -8,7 +8,8 @@ import { Upload, X, Crop, Check, Sparkles, Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import type { CropData } from "@/components/image-cropper"
-import { analyzeImage, type ImageAnalysis } from "@/lib/ai/analyze-image"
+import { analyzeImage } from "@/lib/ai/analyze-image"
+import type { ImageAnalysis } from "@/lib/ai/types"
 
 export interface UploadedImage {
   id: string
