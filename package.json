@@ -58,6 +58,7 @@
     "hono": "latest",
     "inngest": "^3.48.1",
     "input-otp": "1.4.1",
+    "jspdf": "^3.0.4",
     "jszip": "^3.10.1",
     "koa": "latest",
     "lucide-react": "^0.454.0",

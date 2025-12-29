@@ -6,7 +6,7 @@ import { DashboardHeader } from "@/components/dashboard-header"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { ArrowLeft, Download, CheckCircle2, Package, Loader2, Clock, AlertCircle, RefreshCw } from "lucide-react"
+import { ArrowLeft, Download, CheckCircle2, Package, Loader2, Clock, AlertCircle, RefreshCw, FileText, ArrowRight } from "lucide-react"
 import Link from "next/link"
 import { FramePreview } from "@/components/frame-preview"
 import {
@@ -21,6 +21,7 @@ import { getBatchById, getImagesByBatchId } from "@/lib/supabase/queries"
 import type { Database } from "@/lib/supabase/types"
 import { useProcessingStatus } from "@/hooks/use-processing-status"
 import JSZip from "jszip"
+import { jsPDF } from "jspdf"
 
 type BatchRecord = Database["public"]["Tables"]["batches"]["Row"]
 
@@ -58,6 +59,7 @@ function ResultsContent() {
   const [isDownloading, setIsDownloading] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
   const [downloadProgress, setDownloadProgress] = useState(0)
+  const [isGeneratingPdf, setIsGeneratingPdf] = useState(false)
 
   // Hook para polling del estado de procesamiento
   const { status: processingStatus, isPolling, startPolling, stopPolling, refetch } = useProcessingStatus({
@@ -239,6 +241,105 @@ function ResultsContent() {
     }
   }
 
+  const handleDownloadPdf = async () => {
+    const completedImages = images.filter((img) => img.status === "completed" && img.processedUrl)
+    
+    if (completedImages.length === 0) {
+      alert("No hay imágenes procesadas para generar el PDF")
+      return
+    }
+
+    setIsGeneratingPdf(true)
+    setDownloadProgress(0)
+
+    try {
+      // Crear PDF en formato A4 vertical (210 x 297 mm)
+      const pdf = new jsPDF({
+        orientation: "portrait",
+        unit: "mm",
+        format: "a4",
+      })
+
+      const pageWidth = 210
+      const pageHeight = 297
+      const margin = 10
+      const imageWidth = pageWidth - (margin * 2) // 190mm
+      const imageHeight = imageWidth * 1.5 // Proporción 2:3 → 285mm (ajustamos)
+      
+      // Ajustar altura si excede la página
+      const maxImageHeight = pageHeight - (margin * 2)
+      const finalImageHeight = Math.min(imageHeight, maxImageHeight)
+      const finalImageWidth = finalImageHeight / 1.5 // Mantener proporción
+
+      // Centrar horizontalmente
+      const xOffset = (pageWidth - finalImageWidth) / 2
+      const yOffset = (pageHeight - finalImageHeight) / 2
+
+      for (let i = 0; i < completedImages.length; i++) {
+        const image = completedImages[i]
+        console.log(`[Results] Agregando al PDF: ${image.originalName} (${i + 1}/${completedImages.length})`)
+
+        try {
+          // Agregar nueva página si no es la primera imagen
+          if (i > 0) {
+            pdf.addPage()
+          }
+
+          // Descargar imagen y convertir a base64
+          const response = await fetch(image.processedUrl!)
+          if (!response.ok) {
+            console.error(`Error descargando ${image.originalName}: ${response.status}`)
+            continue
+          }
+
+          const blob = await response.blob()
+          const base64 = await blobToBase64(blob)
+
+          // Agregar imagen al PDF
+          pdf.addImage(
+            base64,
+            "JPEG",
+            xOffset,
+            yOffset,
+            finalImageWidth,
+            finalImageHeight
+          )
+
+          // Actualizar progreso
+          const progress = Math.round(((i + 1) / completedImages.length) * 100)
+          setDownloadProgress(progress)
+        } catch (err) {
+          console.error(`Error procesando ${image.originalName}:`, err)
+        }
+      }
+
+      // Descargar el PDF
+      console.log("[Results] Generando archivo PDF...")
+      pdf.save(`lote_${batchId?.slice(0, 8)}_procesado.pdf`)
+
+      console.log("[Results] ✅ PDF descargado exitosamente")
+    } catch (error) {
+      console.error("Error creando PDF:", error)
+      alert("Error al crear el archivo PDF")
+    } finally {
+      setIsGeneratingPdf(false)
+      setDownloadProgress(0)
+    }
+  }
+
+  // Helper para convertir Blob a base64
+  const blobToBase64 = (blob: Blob): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader()
+      reader.onloadend = () => {
+        const result = reader.result as string
+        resolve(result)
+      }
+      reader.onerror = reject
+      reader.readAsDataURL(blob)
+    })
+  }
+
   // Componente para el estado de una imagen
   const ImageStatusBadge = ({ status }: { status: ProcessedImage["status"] }) => {
     switch (status) {
@@ -384,25 +485,47 @@ function ResultsContent() {
                     {completedCount} imágenes han sido procesadas y escaladas exitosamente
                   </p>
                 </div>
-                <Button 
-                  onClick={handleDownloadAll} 
-                  disabled={isDownloading || completedCount === 0} 
-                  className="gap-2 w-full sm:w-auto shrink-0"
-                >
-                  {isDownloading ? (
-                    <>
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                      <span className="hidden sm:inline">Descargando... {downloadProgress}%</span>
-                      <span className="sm:hidden">{downloadProgress}%</span>
-                    </>
-                  ) : (
-                    <>
-                      <Package className="h-4 w-4" />
-                      <span className="hidden sm:inline">Descargar Todo (ZIP)</span>
-                      <span className="sm:hidden">Descargar Todo</span>
-                    </>
-                  )}
-                </Button>
+                <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+                  <Button 
+                    onClick={handleDownloadPdf} 
+                    disabled={isGeneratingPdf || isDownloading || completedCount === 0} 
+                    variant="outline"
+                    className="gap-2 w-full sm:w-auto shrink-0"
+                  >
+                    {isGeneratingPdf ? (
+                      <>
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        <span className="hidden sm:inline">Generando PDF... {downloadProgress}%</span>
+                        <span className="sm:hidden">{downloadProgress}%</span>
+                      </>
+                    ) : (
+                      <>
+                        <FileText className="h-4 w-4" />
+                        <span className="hidden sm:inline">Descargar PDF</span>
+                        <span className="sm:hidden">PDF</span>
+                      </>
+                    )}
+                  </Button>
+                  <Button 
+                    onClick={handleDownloadAll} 
+                    disabled={isDownloading || isGeneratingPdf || completedCount === 0} 
+                    className="gap-2 w-full sm:w-auto shrink-0"
+                  >
+                    {isDownloading ? (
+                      <>
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        <span className="hidden sm:inline">Descargando... {downloadProgress}%</span>
+                        <span className="sm:hidden">{downloadProgress}%</span>
+                      </>
+                    ) : (
+                      <>
+                        <Package className="h-4 w-4" />
+                        <span className="hidden sm:inline">Descargar Todo (ZIP)</span>
+                        <span className="sm:hidden">ZIP</span>
+                      </>
+                    )}
+                  </Button>
+                </div>
               </div>
             </CardContent>
           </Card>
@@ -575,6 +698,32 @@ function ResultsContent() {
                   </Badge>
                 )}
               </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Finalize Button - Similar to checkout button in eCommerce */}
+        <Card className="border-primary/20 bg-gradient-to-r from-primary/5 to-primary/10">
+          <CardContent className="pt-6 pb-6">
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+              <div className="text-center sm:text-left">
+                <h3 className="font-semibold text-lg">¿Listo para continuar?</h3>
+                <p className="text-sm text-muted-foreground">
+                  {allCompleted 
+                    ? "Todas las imágenes han sido procesadas exitosamente"
+                    : `${completedCount} de ${images.length} imágenes procesadas`}
+                </p>
+              </div>
+              <Link href="/dashboard" className="w-full sm:w-auto">
+                <Button 
+                  size="lg" 
+                  className="w-full sm:w-auto gap-2 text-base px-8"
+                  disabled={!allCompleted}
+                >
+                  Finalizar Lote
+                  <ArrowRight className="h-5 w-5" />
+                </Button>
+              </Link>
             </div>
           </CardContent>
         </Card>

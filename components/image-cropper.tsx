@@ -74,36 +74,46 @@ export function ImageCropper({ imageSrc, imageId, isOpen, onClose, onCropComplet
 
     return new Promise((resolve, reject) => {
       image.onload = () => {
-        const canvas = document.createElement("canvas")
-        const ctx = canvas.getContext("2d")
+        // Primero, crear un canvas con la imagen rotada/volteada
+        const rotatedCanvas = document.createElement("canvas")
+        const rotatedCtx = rotatedCanvas.getContext("2d")
 
-        if (!ctx) {
+        if (!rotatedCtx) {
           reject(new Error("No 2d context"))
           return
         }
 
-        // Set canvas size to the cropped area
-        canvas.width = croppedAreaPixels.width
-        canvas.height = croppedAreaPixels.height
+        // Calcular dimensiones del canvas rotado
+        const isRotated90or270 = Math.abs(rotation % 180) === 90
+        const rotatedWidth = isRotated90or270 ? image.height : image.width
+        const rotatedHeight = isRotated90or270 ? image.width : image.height
 
-        // Apply transformations
-        ctx.save()
+        rotatedCanvas.width = rotatedWidth
+        rotatedCanvas.height = rotatedHeight
 
-        // Move to center for transformations
-        ctx.translate(canvas.width / 2, canvas.height / 2)
+        // Aplicar transformaciones en el orden correcto
+        rotatedCtx.save()
+        rotatedCtx.translate(rotatedWidth / 2, rotatedHeight / 2)
+        rotatedCtx.rotate((rotation * Math.PI) / 180)
+        rotatedCtx.scale(flipH ? -1 : 1, flipV ? -1 : 1)
+        rotatedCtx.drawImage(image, -image.width / 2, -image.height / 2)
+        rotatedCtx.restore()
 
-        // Apply rotation
-        ctx.rotate((rotation * Math.PI) / 180)
+        // Ahora recortar de la imagen ya transformada
+        const finalCanvas = document.createElement("canvas")
+        const finalCtx = finalCanvas.getContext("2d")
 
-        // Apply flips
-        ctx.scale(flipH ? -1 : 1, flipV ? -1 : 1)
+        if (!finalCtx) {
+          reject(new Error("No 2d context for final canvas"))
+          return
+        }
 
-        // Move back
-        ctx.translate(-canvas.width / 2, -canvas.height / 2)
+        finalCanvas.width = croppedAreaPixels.width
+        finalCanvas.height = croppedAreaPixels.height
 
-        // Draw the cropped image
-        ctx.drawImage(
-          image,
+        // Dibujar solo el área recortada
+        finalCtx.drawImage(
+          rotatedCanvas,
           croppedAreaPixels.x,
           croppedAreaPixels.y,
           croppedAreaPixels.width,
@@ -114,10 +124,8 @@ export function ImageCropper({ imageSrc, imageId, isOpen, onClose, onCropComplet
           croppedAreaPixels.height,
         )
 
-        ctx.restore()
-
         // Convert to blob URL
-        canvas.toBlob(
+        finalCanvas.toBlob(
           (blob) => {
             if (blob) {
               resolve(URL.createObjectURL(blob))
@@ -161,14 +169,6 @@ export function ImageCropper({ imageSrc, imageId, isOpen, onClose, onCropComplet
     onClose()
   }
 
-  // Calculate transform style for flips
-  const getTransformStyle = () => {
-    const transforms = []
-    if (flipH) transforms.push("scaleX(-1)")
-    if (flipV) transforms.push("scaleY(-1)")
-    return transforms.length > 0 ? transforms.join(" ") : undefined
-  }
-
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && handleCancel()}>
       <DialogContent className="max-w-[95vw] sm:max-w-4xl w-full h-[95vh] sm:h-[90vh] flex flex-col p-0">
@@ -177,26 +177,31 @@ export function ImageCropper({ imageSrc, imageId, isOpen, onClose, onCropComplet
         </DialogHeader>
 
         <div className="flex-1 relative bg-black/90 mx-3 sm:mx-6 rounded-lg overflow-hidden">
-          <div style={{ transform: getTransformStyle() }} className="absolute inset-0">
-            <Cropper
-              image={imageSrc}
-              crop={crop}
-              zoom={zoom}
-              rotation={rotation}
-              aspect={2 / 3}
-              onCropChange={onCropChange}
-              onZoomChange={onZoomChange}
-              onCropComplete={onCropCompleteCallback}
-              cropShape="rect"
-              showGrid={true}
-              style={{
-                containerStyle: {
-                  width: "100%",
-                  height: "100%",
-                },
-              }}
-            />
-          </div>
+          <Cropper
+            image={imageSrc}
+            crop={crop}
+            zoom={zoom}
+            rotation={rotation}
+            aspect={2 / 3}
+            onCropChange={onCropChange}
+            onZoomChange={onZoomChange}
+            onCropComplete={onCropCompleteCallback}
+            cropShape="rect"
+            showGrid={true}
+            transform={[
+              `translate(${crop.x}px, ${crop.y}px)`,
+              `rotateZ(${rotation}deg)`,
+              `scale(${zoom})`,
+              `scaleX(${flipH ? -1 : 1})`,
+              `scaleY(${flipV ? -1 : 1})`,
+            ].join(' ')}
+            style={{
+              containerStyle: {
+                width: "100%",
+                height: "100%",
+              },
+            }}
+          />
         </div>
 
         {/* Controls */}
