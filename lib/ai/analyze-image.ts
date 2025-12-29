@@ -17,7 +17,7 @@ export async function analyzeImage(
 ): Promise<AnalyzeImageResult> {
   try {
     const { object } = await generateObject({
-      model: google("gemini-2.0-flash"),
+      model: google("gemini-2.5-flash"),
       schema: imageAnalysisSchema,
       messages: [
         {

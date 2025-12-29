@@ -34,7 +34,7 @@ export async function analyzeImageWithGemini(
       | "image/webp";
 
     const { object } = await generateObject({
-      model: google("gemini-2.0-flash"),
+      model: google("gemini-2.5-flash"),
       schema: geminiAnalysisSchema,
       messages: [
         {
