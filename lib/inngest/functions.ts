@@ -97,16 +97,37 @@ export const processImageFlow = inngest.createFunction(
       
       const result = await upscaleWithTopaz(originalUrl, 2);
       
-      console.log(`[${imageId}] Upscaling completado: ${result.originalWidth}x${result.originalHeight} → ${result.newWidth}x${result.newHeight}`);
+      if (result.upscaledImageBase64) {
+        console.log(`[${imageId}] Upscaling completado: imagen recibida en base64 (${result.upscaledImageBase64.length} chars)`);
+      } else {
+        console.log(`[${imageId}] Upscaling completado: ${result.originalWidth}x${result.originalHeight} → ${result.newWidth}x${result.newHeight}`);
+      }
       
       return { ...result, skipped: false };
     });
 
     // Step C: Procesamiento del marco con Sharp
     const frameResult = await step.run("process-frame-with-sharp", async () => {
-      const imageToProcess = upscaleResult.skipped 
-        ? originalUrl 
-        : upscaleResult.upscaledUrl;
+      // Determinar la fuente de la imagen para procesar
+      let imageToProcess: string | Buffer;
+      
+      if (upscaleResult.skipped) {
+        // Si no hubo upscaling, usar la URL original
+        imageToProcess = originalUrl;
+        console.log(`[${imageId}] Usando imagen original (sin upscaling)`);
+      } else if (upscaleResult.upscaledImageBase64) {
+        // Si Topaz devolvió la imagen en base64, convertir a Buffer
+        imageToProcess = Buffer.from(upscaleResult.upscaledImageBase64, "base64");
+        console.log(`[${imageId}] Usando imagen upscaled desde base64`);
+      } else if (upscaleResult.upscaledUrl) {
+        // Si Topaz devolvió una URL
+        imageToProcess = upscaleResult.upscaledUrl;
+        console.log(`[${imageId}] Usando imagen upscaled desde URL`);
+      } else {
+        // Fallback a la imagen original
+        imageToProcess = originalUrl;
+        console.log(`[${imageId}] Fallback a imagen original`);
+      }
 
       console.log(`[${imageId}] Generando marco con ajustes de color...`);
       

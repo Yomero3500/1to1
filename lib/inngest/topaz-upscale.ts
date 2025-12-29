@@ -52,13 +52,15 @@ export async function upscaleWithTopaz(
     const enhanceResponse = await fetch(TOPAZ_API_URL, {
       method: "POST",
       headers: {
-        "Accept": "application/json",
+        "Accept": "*/*", // Aceptar cualquier tipo de respuesta
         "X-API-Key": apiKey,
       },
       body: formData,
     });
 
     console.log(`[Topaz] Respuesta recibida: ${enhanceResponse.status}`);
+    const contentType = enhanceResponse.headers.get("content-type") || "";
+    console.log(`[Topaz] Content-Type: ${contentType}`);
 
     if (!enhanceResponse.ok) {
       const errorText = await enhanceResponse.text();
@@ -66,6 +68,29 @@ export async function upscaleWithTopaz(
       throw new Error(`Error de Topaz API: ${enhanceResponse.status} - ${errorText}`);
     }
 
+    // Verificar si la respuesta es una imagen directa (binary)
+    if (contentType.includes("image/")) {
+      console.log("[Topaz] ✅ API devolvió imagen directamente, procesando...");
+      
+      // Obtener los bytes de la imagen
+      const imageArrayBuffer = await enhanceResponse.arrayBuffer();
+      const upscaledImageBuffer = Buffer.from(imageArrayBuffer);
+      
+      console.log(`[Topaz] Imagen upscaled recibida: ${upscaledImageBuffer.byteLength} bytes`);
+      
+      // Retornar con la imagen en base64 para que el siguiente step la procese
+      return {
+        upscaledUrl: "", // No hay URL, la imagen está en el buffer
+        upscaledImageBase64: upscaledImageBuffer.toString("base64"),
+        originalWidth: 0,
+        originalHeight: 0,
+        newWidth: 0,
+        newHeight: 0,
+        scaleFactor,
+      };
+    }
+
+    // Si es JSON, parsear la respuesta
     const result = await enhanceResponse.json();
     console.log("[Topaz] Respuesta JSON:", JSON.stringify(result, null, 2));
 
@@ -93,10 +118,19 @@ export async function upscaleWithTopaz(
       return await pollTopazJob(jobId, apiKey, scaleFactor);
     }
 
-    // Opción 3: La respuesta es directamente la imagen (base64 o buffer)
+    // Opción 3: La respuesta contiene imagen en base64
     if (result.image || result.data) {
-      console.log("[Topaz] Respuesta contiene imagen directa, procesando...");
-      throw new Error("Respuesta de imagen directa no implementada todavía");
+      console.log("[Topaz] Respuesta contiene imagen en base64...");
+      const base64Data = result.image || result.data;
+      return {
+        upscaledUrl: "",
+        upscaledImageBase64: base64Data,
+        originalWidth: result.original_width || 0,
+        originalHeight: result.original_height || 0,
+        newWidth: result.output_width || 0,
+        newHeight: result.output_height || 0,
+        scaleFactor,
+      };
     }
 
     console.error("[Topaz] Respuesta inesperada:", result);

@@ -36,6 +36,7 @@ export type GeminiAnalysisResult = {
 
 export type TopazUpscaleResult = {
   upscaledUrl: string;
+  upscaledImageBase64?: string; // Cuando la API devuelve la imagen directamente
   originalWidth: number;
   originalHeight: number;
   newWidth: number;

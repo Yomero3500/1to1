@@ -21,15 +21,30 @@ const FRAME_CONFIG = {
 
 /**
  * Procesa una imagen aplicando ajustes de color y generando el marco de 3 capas.
+ * @param imageSource - URL de la imagen o Buffer con los bytes de la imagen
  */
 export async function processFrameWithSharp(
-  imageUrl: string,
+  imageSource: string | Buffer,
   colorAdjustments: GeminiAnalysisResult,
   cropData?: { x: number; y: number; width: number; height: number }
 ): Promise<FrameProcessResult> {
-  // Descargar la imagen
-  const response = await fetch(imageUrl);
-  const imageBuffer = Buffer.from(await response.arrayBuffer());
+  // Obtener el buffer de la imagen (desde URL o directamente)
+  let imageBuffer: Buffer;
+  
+  if (Buffer.isBuffer(imageSource)) {
+    // Ya es un Buffer, usarlo directamente
+    imageBuffer = imageSource;
+    console.log(`[Sharp] Usando imagen desde Buffer: ${imageBuffer.byteLength} bytes`);
+  } else {
+    // Es una URL, descargar la imagen
+    console.log(`[Sharp] Descargando imagen desde URL: ${imageSource.substring(0, 80)}...`);
+    const response = await fetch(imageSource);
+    if (!response.ok) {
+      throw new Error(`Error descargando imagen: ${response.status} ${response.statusText}`);
+    }
+    imageBuffer = Buffer.from(await response.arrayBuffer());
+    console.log(`[Sharp] Imagen descargada: ${imageBuffer.byteLength} bytes`);
+  }
 
   // Cargar imagen con Sharp
   let image = sharp(imageBuffer);
