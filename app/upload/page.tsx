@@ -12,6 +12,7 @@ import { FramePreview } from "@/components/frame-preview"
 import { ArrowLeft, Loader2, AlertCircle } from "lucide-react"
 import Link from "next/link"
 import { createBatch, createImage, uploadImage } from "@/lib/supabase/queries"
+import { startBatchProcessing } from "@/lib/inngest/actions"
 
 export default function UploadPage() {
   const router = useRouter()
@@ -111,7 +112,18 @@ export default function UploadPage() {
         console.log(`[Upload] Registro de imagen creado para batch ${batch.id}`)
       }
 
-      setUploadProgress("¡Lote creado exitosamente!")
+      // 3. Trigger Inngest processing for all images
+      setUploadProgress("Iniciando procesamiento de imágenes...")
+      console.log(`[Upload] Iniciando procesamiento de batch ${batch.id}...`)
+      const processingResult = await startBatchProcessing(batch.id)
+      
+      if (processingResult.success) {
+        console.log(`[Upload] ✅ ${processingResult.processedCount} imágenes enviadas a procesar`)
+        setUploadProgress("¡Lote enviado a procesar!")
+      } else {
+        console.error(`[Upload] ❌ Errores al procesar:`, processingResult.errors)
+        // Continue anyway, images will be processed eventually
+      }
 
       // Redirect to results page with batch ID
       router.push(`/results?batch=${batch.id}`)
