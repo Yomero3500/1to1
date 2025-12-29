@@ -121,5 +121,56 @@
   }
   body {
     @apply bg-background text-foreground;
+    /* Mejoras para móvil */
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
+
+  /* Smooth scrolling en toda la app */
+  html {
+    scroll-behavior: smooth;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  /* Prevenir zoom en inputs en iOS (mantener font-size 16px mínimo) */
+  input[type="text"],
+  input[type="email"],
+  input[type="password"],
+  input[type="number"],
+  input[type="tel"],
+  input[type="url"],
+  select,
+  textarea {
+    font-size: 16px;
+  }
+
+  /* En desktop, usar tamaños de fuente normales */
+  @media (min-width: 640px) {
+    input[type="text"],
+    input[type="email"],
+    input[type="password"],
+    input[type="number"],
+    input[type="tel"],
+    input[type="url"],
+    select,
+    textarea {
+      font-size: 0.875rem; /* 14px */
+    }
+  }
+
+  /* Mejorar scrolling en móvil */
+  * {
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Tamaño mínimo de touch targets en móvil (44x44px recomendado) */
+  @media (max-width: 640px) {
+    button,
+    a,
+    [role="button"] {
+      min-height: 44px;
+      min-width: 44px;
+    }
   }
 }

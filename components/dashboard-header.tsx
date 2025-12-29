@@ -38,7 +38,12 @@ export function DashboardHeader() {
     if (!user) return "U"
     const name = user.user_metadata?.full_name || user.email || ""
     if (user.user_metadata?.full_name) {
-      return name.split(" ").map((n: string) => n[0]).join("").toUpperCase().slice(0, 2)
+      return name
+        .split(" ")
+        .map((n: string) => n[0])
+        .join("")
+        .toUpperCase()
+        .slice(0, 2)
     }
     return name.slice(0, 2).toUpperCase()
   }
@@ -49,20 +54,22 @@ export function DashboardHeader() {
   }
 
   return (
-    <header className="border-b border-border bg-card">
-      <div className="container mx-auto flex h-16 items-center justify-between px-4">
+    <header className="border-b border-border bg-card sticky top-0 z-50">
+      <div className="container mx-auto flex h-14 sm:h-16 items-center justify-between px-4">
         <div className="flex items-center gap-2">
-          <div className="bg-primary text-primary-foreground p-2 rounded-lg">
-            <ImageIcon className="h-5 w-5" />
+          <div className="bg-primary text-primary-foreground p-1.5 sm:p-2 rounded-lg">
+            <ImageIcon className="h-4 w-4 sm:h-5 sm:w-5" />
           </div>
-          <h1 className="text-xl font-semibold tracking-tight">FrameFix</h1>
+          <h1 className="text-lg sm:text-xl font-semibold tracking-tight">FrameFix</h1>
         </div>
 
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="ghost" className="relative h-10 w-10 rounded-full">
-              <Avatar>
-                <AvatarFallback className="bg-primary text-primary-foreground">{getUserInitials()}</AvatarFallback>
+            <Button variant="ghost" className="relative h-9 w-9 sm:h-10 sm:w-10 rounded-full">
+              <Avatar className="h-9 w-9 sm:h-10 sm:w-10">
+                <AvatarFallback className="bg-primary text-primary-foreground text-xs sm:text-sm">
+                  {getUserInitials()}
+                </AvatarFallback>
               </Avatar>
             </Button>
           </DropdownMenuTrigger>
@@ -70,7 +77,7 @@ export function DashboardHeader() {
             <DropdownMenuLabel className="font-normal">
               <div className="flex flex-col gap-1">
                 <p className="text-sm font-medium leading-none">{getUserDisplayName()}</p>
-                <p className="text-xs leading-none text-muted-foreground">{user?.email || ""}</p>
+                <p className="text-xs leading-none text-muted-foreground truncate">{user?.email || ""}</p>
               </div>
             </DropdownMenuLabel>
             <DropdownMenuSeparator />

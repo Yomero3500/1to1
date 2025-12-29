@@ -31,7 +31,13 @@ interface ImageUploadZoneProps {
   onAnalysisComplete?: (imageId: string, analysis: ImageAnalysis) => void
 }
 
-export function ImageUploadZone({ onImagesUploaded, images, onRemoveImage, onCropImage, onAnalysisComplete }: ImageUploadZoneProps) {
+export function ImageUploadZone({
+  onImagesUploaded,
+  images,
+  onRemoveImage,
+  onCropImage,
+  onAnalysisComplete,
+}: ImageUploadZoneProps) {
   const [isDragging, setIsDragging] = useState(false)
 
   // Función para convertir File a base64
@@ -50,39 +56,32 @@ export function ImageUploadZone({ onImagesUploaded, images, onRemoveImage, onCro
   }, [])
 
   // Función para analizar imagen con IA
-  const analyzeImageWithAI = useCallback(async (image: UploadedImage, allImages: UploadedImage[]) => {
-    try {
-      const { base64, mimeType } = await fileToBase64(image.file)
-      const result = await analyzeImage(base64, mimeType)
-      
-      if (result.success && result.data) {
-        // Actualizar el estado de la imagen con los resultados
-        const updatedImages = allImages.map(img => 
-          img.id === image.id 
-            ? { ...img, aiAnalysis: result.data, isAnalyzing: false }
-            : img
-        )
-        onImagesUploaded(updatedImages)
-        onAnalysisComplete?.(image.id, result.data)
-      } else {
-        // En caso de error, solo quitar el estado de análisis
-        const updatedImages = allImages.map(img => 
-          img.id === image.id 
-            ? { ...img, isAnalyzing: false }
-            : img
-        )
+  const analyzeImageWithAI = useCallback(
+    async (image: UploadedImage, allImages: UploadedImage[]) => {
+      try {
+        const { base64, mimeType } = await fileToBase64(image.file)
+        const result = await analyzeImage(base64, mimeType)
+
+        if (result.success && result.data) {
+          // Actualizar el estado de la imagen con los resultados
+          const updatedImages = allImages.map((img) =>
+            img.id === image.id ? { ...img, aiAnalysis: result.data, isAnalyzing: false } : img,
+          )
+          onImagesUploaded(updatedImages)
+          onAnalysisComplete?.(image.id, result.data)
+        } else {
+          // En caso de error, solo quitar el estado de análisis
+          const updatedImages = allImages.map((img) => (img.id === image.id ? { ...img, isAnalyzing: false } : img))
+          onImagesUploaded(updatedImages)
+        }
+      } catch (error) {
+        console.error("Error analizando imagen:", error)
+        const updatedImages = allImages.map((img) => (img.id === image.id ? { ...img, isAnalyzing: false } : img))
         onImagesUploaded(updatedImages)
       }
-    } catch (error) {
-      console.error("Error analizando imagen:", error)
-      const updatedImages = allImages.map(img => 
-        img.id === image.id 
-          ? { ...img, isAnalyzing: false }
-          : img
-      )
-      onImagesUploaded(updatedImages)
-    }
-  }, [fileToBase64, onImagesUploaded, onAnalysisComplete])
+    },
+    [fileToBase64, onImagesUploaded, onAnalysisComplete],
+  )
 
   const processFiles = useCallback(
     (files: FileList | null) => {
@@ -112,9 +111,9 @@ export function ImageUploadZone({ onImagesUploaded, images, onRemoveImage, onCro
             if (newImages.length === Array.from(files).filter((f) => f.type.startsWith("image/")).length) {
               const allImages = [...images, ...newImages]
               onImagesUploaded(allImages)
-              
+
               // Iniciar análisis de IA para cada nueva imagen
-              newImages.forEach(newImg => {
+              newImages.forEach((newImg) => {
                 analyzeImageWithAI(newImg, allImages)
               })
             }
@@ -162,12 +161,18 @@ export function ImageUploadZone({ onImagesUploaded, images, onRemoveImage, onCro
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
       >
-        <label className="flex flex-col items-center justify-center p-12 cursor-pointer">
-          <Upload className={`h-12 w-12 mb-4 ${isDragging ? "text-primary" : "text-muted-foreground"}`} />
-          <p className="text-lg font-medium mb-2">Arrastra y suelta tus imágenes aquí</p>
-          <p className="text-sm text-muted-foreground mb-4">o haz clic para seleccionar archivos</p>
+        <label className="flex flex-col items-center justify-center p-8 sm:p-12 cursor-pointer">
+          <Upload
+            className={`h-10 w-10 sm:h-12 sm:w-12 mb-3 sm:mb-4 ${isDragging ? "text-primary" : "text-muted-foreground"}`}
+          />
+          <p className="text-base sm:text-lg font-medium mb-2 text-center text-balance">
+            Arrastra y suelta tus imágenes aquí
+          </p>
+          <p className="text-xs sm:text-sm text-muted-foreground mb-4 text-center">
+            o haz clic para seleccionar archivos
+          </p>
           <input type="file" multiple accept="image/*" onChange={handleFileInput} className="hidden" />
-          <Button type="button" variant="secondary">
+          <Button type="button" variant="secondary" size="sm">
             Seleccionar Imágenes
           </Button>
         </label>
@@ -175,13 +180,15 @@ export function ImageUploadZone({ onImagesUploaded, images, onRemoveImage, onCro
 
       {/* Uploaded Images Preview */}
       {images.length > 0 && (
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 sm:gap-4">
           {images.map((image) => {
             const needsCrop = Math.abs(image.aspectRatio - 3 / 2) > 0.05 && !image.isCropped
-            
+
             return (
               <div key={image.id} className="relative group">
-                <Card className={`overflow-hidden ${needsCrop ? 'ring-2 ring-yellow-500/50' : ''} ${image.isCropped ? 'ring-2 ring-green-500/50' : ''}`}>
+                <Card
+                  className={`overflow-hidden ${needsCrop ? "ring-2 ring-yellow-500/50" : ""} ${image.isCropped ? "ring-2 ring-green-500/50" : ""}`}
+                >
                   <div className="aspect-square bg-muted relative">
                     <img
                       src={image.preview || "/placeholder.svg"}
@@ -192,61 +199,65 @@ export function ImageUploadZone({ onImagesUploaded, images, onRemoveImage, onCro
                     {image.isCropped && (
                       <Badge className="absolute bottom-2 left-2 bg-green-500/90 text-white text-xs">
                         <Check className="h-3 w-3 mr-1" />
-                        Recortada
+                        <span className="hidden sm:inline">Recortada</span>
+                        <span className="sm:hidden">OK</span>
                       </Badge>
                     )}
                     {needsCrop && !image.isAnalyzing && (
-                      <Badge className="absolute bottom-2 left-2 bg-yellow-500/90 text-white text-xs">
-                        Requiere recorte
+                      <Badge className="absolute bottom-2 left-2 bg-yellow-500/90 text-white text-[10px] sm:text-xs leading-tight">
+                        <span className="hidden sm:inline">Requiere recorte</span>
+                        <span className="sm:hidden">Recortar</span>
                       </Badge>
                     )}
-                    
+
                     {/* AI Analysis Skeleton/Status */}
                     {image.isAnalyzing && (
-                      <div className="absolute inset-0 bg-black/60 flex flex-col items-center justify-center">
-                        <Loader2 className="h-6 w-6 text-white animate-spin mb-2" />
-                        <span className="text-white text-xs font-medium">IA Analizando iluminación...</span>
+                      <div className="absolute inset-0 bg-black/60 flex flex-col items-center justify-center p-2">
+                        <Loader2 className="h-5 w-5 sm:h-6 sm:w-6 text-white animate-spin mb-2" />
+                        <span className="text-white text-[10px] sm:text-xs font-medium text-center leading-tight">
+                          IA Analizando...
+                        </span>
                       </div>
                     )}
-                    
+
                     {/* AI Analysis Complete Badge */}
                     {image.aiAnalysis && !image.isAnalyzing && (
                       <Badge className="absolute top-2 left-2 bg-purple-500/90 text-white text-xs">
                         <Sparkles className="h-3 w-3 mr-1" />
-                        IA Analizada
+                        <span className="hidden sm:inline">IA</span>
                       </Badge>
                     )}
                   </div>
-                  
+
                   {/* AI Suggestions (shown below image when analyzed) */}
                   {image.aiAnalysis && !image.isAnalyzing && (
-                    <div className="p-2 bg-muted/50 text-xs">
+                    <div className="p-2 bg-muted/50 text-[10px] sm:text-xs">
                       <p className="text-muted-foreground truncate" title={image.aiAnalysis.suggestions}>
                         {image.aiAnalysis.suggestions}
                       </p>
                     </div>
                   )}
                 </Card>
-                
+
                 {/* Action Buttons */}
-                <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                <div className="absolute top-1 right-1 sm:top-2 sm:right-2 flex gap-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
                   <Button
                     variant="secondary"
                     size="icon"
-                    className="h-8 w-8 bg-white/90 hover:bg-white"
+                    className="h-7 w-7 sm:h-8 sm:w-8 bg-white/90 hover:bg-white"
                     onClick={() => onCropImage(image)}
                     title="Recortar imagen"
                   >
-                    <Crop className="h-4 w-4" />
+                    <Crop className="h-3 w-3 sm:h-4 sm:w-4" />
                   </Button>
                   <Button
                     variant="destructive"
                     size="icon"
-                    className="h-8 w-8"
+                    className="h-7 w-7 sm:h-8 sm:w-8"
                     onClick={() => onRemoveImage(image.id)}
                     title="Eliminar imagen"
                   >
-                    <X className="h-4 w-4" />
+                    <X className="h-3 w-3 sm:h-4 sm:w-4" />
                   </Button>
                 </div>
               </div>

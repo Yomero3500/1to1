@@ -20,8 +20,8 @@ import {
 import { getBatchById, getImagesByBatchId } from "@/lib/supabase/queries"
 import type { Database } from "@/lib/supabase/types"
 
-type ImageRecord = Database['public']['Tables']['images']['Row']
-type BatchRecord = Database['public']['Tables']['batches']['Row']
+type ImageRecord = Database["public"]["Tables"]["images"]["Row"]
+type BatchRecord = Database["public"]["Tables"]["batches"]["Row"]
 
 interface ProcessedImage {
   id: string
@@ -34,8 +34,8 @@ interface ProcessedImage {
 
 function ResultsContent() {
   const searchParams = useSearchParams()
-  const batchId = searchParams.get('batch')
-  
+  const batchId = searchParams.get("batch")
+
   const [batch, setBatch] = useState<BatchRecord | null>(null)
   const [images, setImages] = useState<ProcessedImage[]>([])
   const [selectedImage, setSelectedImage] = useState<ProcessedImage | null>(null)
@@ -52,32 +52,31 @@ function ResultsContent() {
 
   const loadBatchData = async () => {
     if (!batchId) return
-    
+
     try {
       console.log(`[Results] Cargando datos del batch: ${batchId}`)
-      const [batchData, imagesData] = await Promise.all([
-        getBatchById(batchId),
-        getImagesByBatchId(batchId)
-      ])
-      
+      const [batchData, imagesData] = await Promise.all([getBatchById(batchId), getImagesByBatchId(batchId)])
+
       console.log(`[Results] Batch:`, batchData)
       console.log(`[Results] Imágenes encontradas: ${imagesData.length}`)
       imagesData.forEach((img, i) => {
-        console.log(`[Results] Imagen ${i + 1}: status=${img.status}, original_url=${img.original_url?.substring(0, 60)}..., processed_url=${img.processed_url || 'null'}`)
+        console.log(
+          `[Results] Imagen ${i + 1}: status=${img.status}, original_url=${img.original_url?.substring(0, 60)}..., processed_url=${img.processed_url || "null"}`,
+        )
       })
-      
+
       setBatch(batchData)
-      
+
       // Transform images to display format
       const processedImages: ProcessedImage[] = imagesData.map((img, index) => ({
         id: img.id,
         originalName: `foto-${index + 1}.jpg`,
         preview: img.processed_url || img.original_url || "/placeholder.svg",
         aspectRatio: 2 / 3, // Default aspect ratio
-        processed: img.status === 'completed',
-        status: img.status
+        processed: img.status === "completed",
+        status: img.status,
       }))
-      
+
       setImages(processedImages)
     } catch (error) {
       console.error("Error cargando datos del lote:", error)
@@ -87,11 +86,11 @@ function ResultsContent() {
   }
 
   const handleDownloadImage = async (imageId: string, imageName: string) => {
-    const image = images.find(img => img.id === imageId)
+    const image = images.find((img) => img.id === imageId)
     if (!image) return
-    
+
     console.log(`[Results] Descargando imagen ${imageId}: ${image.preview}`)
-    
+
     try {
       const response = await fetch(image.preview)
       if (!response.ok) {
@@ -100,7 +99,7 @@ function ResultsContent() {
       }
       const blob = await response.blob()
       const url = window.URL.createObjectURL(blob)
-      const a = document.createElement('a')
+      const a = document.createElement("a")
       a.href = url
       a.download = imageName
       document.body.appendChild(a)
@@ -122,7 +121,7 @@ function ResultsContent() {
       for (const image of images) {
         await handleDownloadImage(image.id, image.originalName)
         // Small delay between downloads
-        await new Promise(resolve => setTimeout(resolve, 500))
+        await new Promise((resolve) => setTimeout(resolve, 500))
       }
     } catch (error) {
       console.error("Error descargando imágenes:", error)
@@ -135,7 +134,7 @@ function ResultsContent() {
     return (
       <div className="min-h-screen bg-background">
         <DashboardHeader />
-        <main className="container mx-auto p-6 flex items-center justify-center">
+        <main className="container mx-auto p-4 md:p-6 flex items-center justify-center">
           <Loader2 className="h-8 w-8 animate-spin" />
         </main>
       </div>
@@ -146,11 +145,12 @@ function ResultsContent() {
     return (
       <div className="min-h-screen bg-background">
         <DashboardHeader />
-        <main className="container mx-auto p-6 space-y-6">
+        <main className="container mx-auto p-4 md:p-6 space-y-4 md:space-y-6">
           <Link href="/dashboard">
-            <Button variant="ghost" className="gap-2">
+            <Button variant="ghost" className="gap-2 -ml-2">
               <ArrowLeft className="h-4 w-4" />
-              Volver al Dashboard
+              <span className="hidden sm:inline">Volver al Dashboard</span>
+              <span className="sm:hidden">Volver</span>
             </Button>
           </Link>
           <Card>
@@ -167,31 +167,33 @@ function ResultsContent() {
     <div className="min-h-screen bg-background">
       <DashboardHeader />
 
-      <main className="container mx-auto p-6 space-y-6">
+      <main className="container mx-auto p-4 md:p-6 space-y-4 md:space-y-6">
         {/* Back Button */}
         <Link href="/dashboard">
-          <Button variant="ghost" className="gap-2">
+          <Button variant="ghost" className="gap-2 -ml-2">
             <ArrowLeft className="h-4 w-4" />
-            Volver al Dashboard
+            <span className="hidden sm:inline">Volver al Dashboard</span>
+            <span className="sm:hidden">Volver</span>
           </Button>
         </Link>
 
         {/* Success Banner */}
         <Card className="border-green-500/20 bg-green-500/5">
-          <CardContent className="pt-6">
-            <div className="flex items-center gap-4">
-              <div className="bg-green-500/10 p-3 rounded-full">
+          <CardContent className="pt-4 md:pt-6">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+              <div className="bg-green-500/10 p-3 rounded-full shrink-0">
                 <CheckCircle2 className="h-6 w-6 text-green-600 dark:text-green-400" />
               </div>
               <div className="flex-1">
-                <h3 className="font-semibold text-lg">Procesamiento Completado</h3>
-                <p className="text-sm text-muted-foreground">
+                <h3 className="font-semibold text-base md:text-lg">Procesamiento Completado</h3>
+                <p className="text-sm text-muted-foreground text-balance">
                   {images.length} imágenes han sido procesadas y escaladas exitosamente
                 </p>
               </div>
-              <Button onClick={handleDownloadAll} disabled={isDownloading} className="gap-2">
+              <Button onClick={handleDownloadAll} disabled={isDownloading} className="gap-2 w-full sm:w-auto shrink-0">
                 <Package className="h-4 w-4" />
-                {isDownloading ? "Preparando..." : "Descargar Todo (ZIP)"}
+                <span className="hidden sm:inline">{isDownloading ? "Preparando..." : "Descargar Todo (ZIP)"}</span>
+                <span className="sm:hidden">{isDownloading ? "Preparando..." : "Descargar Todo"}</span>
               </Button>
             </div>
           </CardContent>
@@ -200,12 +202,14 @@ function ResultsContent() {
         {/* Batch Information */}
         <Card>
           <CardHeader>
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
               <div>
-                <CardTitle className="font-mono text-sm">Lote {batchId?.slice(0, 8)}...</CardTitle>
-                <CardDescription>Procesado el {new Date(batch.created_at).toLocaleDateString("es-ES")}</CardDescription>
+                <CardTitle className="font-mono text-xs sm:text-sm">Lote {batchId?.slice(0, 8)}...</CardTitle>
+                <CardDescription className="text-xs sm:text-sm">
+                  Procesado el {new Date(batch.created_at).toLocaleDateString("es-ES")}
+                </CardDescription>
               </div>
-              <Badge variant="secondary" className="bg-green-500/10 text-green-700 dark:text-green-400">
+              <Badge variant="secondary" className="bg-green-500/10 text-green-700 dark:text-green-400 w-fit">
                 <CheckCircle2 className="h-3 w-3 mr-1" />
                 Completado
               </Badge>
@@ -216,16 +220,18 @@ function ResultsContent() {
         {/* Results Gallery */}
         <Card>
           <CardHeader>
-            <CardTitle>Galería de Resultados</CardTitle>
-            <CardDescription>Haz clic en una imagen para ver la previsualización completa con marco</CardDescription>
+            <CardTitle className="text-lg md:text-xl">Galería de Resultados</CardTitle>
+            <CardDescription className="text-balance text-sm">
+              Haz clic en una imagen para ver la previsualización completa con marco
+            </CardDescription>
           </CardHeader>
           <CardContent>
             {images.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-8 text-center">
-                <p className="text-muted-foreground">No hay imágenes en este lote</p>
+                <p className="text-muted-foreground text-sm">No hay imágenes en este lote</p>
               </div>
             ) : (
-              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-4">
                 {images.map((image) => (
                   <div key={image.id} className="group relative">
                     <Dialog>
@@ -243,10 +249,12 @@ function ResultsContent() {
                           </div>
                         </button>
                       </DialogTrigger>
-                      <DialogContent className="max-w-2xl">
+                      <DialogContent className="max-w-[95vw] sm:max-w-2xl">
                         <DialogHeader>
-                          <DialogTitle>{image.originalName}</DialogTitle>
-                          <DialogDescription>Previsualización con marco de 3 capas</DialogDescription>
+                          <DialogTitle className="text-sm sm:text-base">{image.originalName}</DialogTitle>
+                          <DialogDescription className="text-xs sm:text-sm">
+                            Previsualización con marco de 3 capas
+                          </DialogDescription>
                         </DialogHeader>
                         <div className="mt-4">
                           <FramePreview imageSrc={image.preview} imageId={image.id} aspectRatio={image.aspectRatio} />
@@ -259,7 +267,7 @@ function ResultsContent() {
                       <Button
                         variant="outline"
                         size="sm"
-                        className="w-full gap-2 bg-transparent"
+                        className="w-full gap-2 bg-transparent text-xs"
                         onClick={() => handleDownloadImage(image.id, image.originalName)}
                       >
                         <Download className="h-3 w-3" />
@@ -276,25 +284,25 @@ function ResultsContent() {
         {/* Processing Details */}
         <Card>
           <CardHeader>
-            <CardTitle>Detalles del Procesamiento</CardTitle>
+            <CardTitle className="text-lg md:text-xl">Detalles del Procesamiento</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <div className="space-y-1">
-                <p className="text-sm text-muted-foreground">Total Imágenes</p>
-                <p className="text-2xl font-bold">{images.length}</p>
+                <p className="text-xs sm:text-sm text-muted-foreground">Total Imágenes</p>
+                <p className="text-xl sm:text-2xl font-bold">{images.length}</p>
               </div>
               <div className="space-y-1">
-                <p className="text-sm text-muted-foreground">Proporción</p>
-                <p className="text-2xl font-bold">2:3</p>
+                <p className="text-xs sm:text-sm text-muted-foreground">Proporción</p>
+                <p className="text-xl sm:text-2xl font-bold">2:3</p>
               </div>
               <div className="space-y-1">
-                <p className="text-sm text-muted-foreground">Procesadas</p>
-                <p className="text-2xl font-bold">{images.filter((i) => i.processed).length}</p>
+                <p className="text-xs sm:text-sm text-muted-foreground">Procesadas</p>
+                <p className="text-xl sm:text-2xl font-bold">{images.filter((i) => i.processed).length}</p>
               </div>
               <div className="space-y-1">
-                <p className="text-sm text-muted-foreground">Estado</p>
-                <Badge className="bg-green-500/10 text-green-700 dark:text-green-400 hover:bg-green-500/20">
+                <p className="text-xs sm:text-sm text-muted-foreground">Estado</p>
+                <Badge className="bg-green-500/10 text-green-700 dark:text-green-400 hover:bg-green-500/20 text-xs">
                   Listo
                 </Badge>
               </div>
@@ -310,7 +318,7 @@ function ResultsLoading() {
   return (
     <div className="min-h-screen bg-background">
       <DashboardHeader />
-      <main className="container mx-auto p-6 flex items-center justify-center">
+      <main className="container mx-auto p-4 md:p-6 flex items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin" />
       </main>
     </div>

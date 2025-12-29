@@ -1,0 +1,27 @@
+{
+  "name": "FrameFix - Procesamiento Profesional de Fotos",
+  "short_name": "FrameFix",
+  "description": "Aplicación profesional para procesar y preparar fotos para enmarcado personalizado",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#fdfcfd",
+  "theme_color": "#3d3d46",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "/icon-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icon-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["photography", "productivity", "utilities"],
+  "lang": "es",
+  "dir": "ltr"
+}

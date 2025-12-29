@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useCallback } from "react"
-import Cropper, { Area, Point } from "react-easy-crop"
+import Cropper, { type Area, type Point } from "react-easy-crop"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Slider } from "@/components/ui/slider"
@@ -71,12 +71,12 @@ export function ImageCropper({ imageSrc, imageId, isOpen, onClose, onCropComplet
 
     const image = new Image()
     image.crossOrigin = "anonymous"
-    
+
     return new Promise((resolve, reject) => {
       image.onload = () => {
         const canvas = document.createElement("canvas")
         const ctx = canvas.getContext("2d")
-        
+
         if (!ctx) {
           reject(new Error("No 2d context"))
           return
@@ -88,16 +88,16 @@ export function ImageCropper({ imageSrc, imageId, isOpen, onClose, onCropComplet
 
         // Apply transformations
         ctx.save()
-        
+
         // Move to center for transformations
         ctx.translate(canvas.width / 2, canvas.height / 2)
-        
+
         // Apply rotation
         ctx.rotate((rotation * Math.PI) / 180)
-        
+
         // Apply flips
         ctx.scale(flipH ? -1 : 1, flipV ? -1 : 1)
-        
+
         // Move back
         ctx.translate(-canvas.width / 2, -canvas.height / 2)
 
@@ -111,7 +111,7 @@ export function ImageCropper({ imageSrc, imageId, isOpen, onClose, onCropComplet
           0,
           0,
           croppedAreaPixels.width,
-          croppedAreaPixels.height
+          croppedAreaPixels.height,
         )
 
         ctx.restore()
@@ -126,7 +126,7 @@ export function ImageCropper({ imageSrc, imageId, isOpen, onClose, onCropComplet
             }
           },
           "image/jpeg",
-          0.95
+          0.95,
         )
       }
 
@@ -140,7 +140,7 @@ export function ImageCropper({ imageSrc, imageId, isOpen, onClose, onCropComplet
 
     try {
       const croppedImageUrl = await createCroppedImage()
-      
+
       const cropData: CropData = {
         x: Math.round(croppedAreaPixels.x),
         y: Math.round(croppedAreaPixels.y),
@@ -171,12 +171,12 @@ export function ImageCropper({ imageSrc, imageId, isOpen, onClose, onCropComplet
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && handleCancel()}>
-      <DialogContent className="max-w-4xl w-full h-[90vh] flex flex-col p-0">
-        <DialogHeader className="p-6 pb-0">
-          <DialogTitle>Recortar Imagen</DialogTitle>
+      <DialogContent className="max-w-[95vw] sm:max-w-4xl w-full h-[95vh] sm:h-[90vh] flex flex-col p-0">
+        <DialogHeader className="p-4 sm:p-6 pb-0">
+          <DialogTitle className="text-base sm:text-lg">Recortar Imagen</DialogTitle>
         </DialogHeader>
 
-        <div className="flex-1 relative bg-black/90 mx-6 rounded-lg overflow-hidden">
+        <div className="flex-1 relative bg-black/90 mx-3 sm:mx-6 rounded-lg overflow-hidden">
           <div style={{ transform: getTransformStyle() }} className="absolute inset-0">
             <Cropper
               image={imageSrc}
@@ -200,10 +200,10 @@ export function ImageCropper({ imageSrc, imageId, isOpen, onClose, onCropComplet
         </div>
 
         {/* Controls */}
-        <div className="p-6 space-y-4">
+        <div className="p-3 sm:p-6 space-y-3 sm:space-y-4">
           {/* Zoom Control */}
-          <div className="flex items-center gap-4">
-            <ZoomOut className="h-4 w-4 text-muted-foreground" />
+          <div className="flex items-center gap-2 sm:gap-4">
+            <ZoomOut className="h-3 w-3 sm:h-4 sm:w-4 text-muted-foreground shrink-0" />
             <Slider
               value={[zoom]}
               min={1}
@@ -212,52 +212,68 @@ export function ImageCropper({ imageSrc, imageId, isOpen, onClose, onCropComplet
               onValueChange={(value) => setZoom(value[0])}
               className="flex-1"
             />
-            <ZoomIn className="h-4 w-4 text-muted-foreground" />
-            <span className="text-sm text-muted-foreground w-12 text-right">{Math.round(zoom * 100)}%</span>
+            <ZoomIn className="h-3 w-3 sm:h-4 sm:w-4 text-muted-foreground shrink-0" />
+            <span className="text-xs sm:text-sm text-muted-foreground w-10 sm:w-12 text-right">
+              {Math.round(zoom * 100)}%
+            </span>
           </div>
 
           {/* Rotation and Flip Controls */}
-          <div className="flex items-center justify-center gap-2">
-            <Button variant="outline" size="icon" onClick={handleRotateLeft} title="Rotar izquierda">
-              <RotateCcw className="h-4 w-4" />
+          <div className="flex items-center justify-center gap-1 sm:gap-2 flex-wrap">
+            <Button
+              variant="outline"
+              size="icon"
+              className="h-8 w-8 sm:h-9 sm:w-9 bg-transparent"
+              onClick={handleRotateLeft}
+              title="Rotar izquierda"
+            >
+              <RotateCcw className="h-3 w-3 sm:h-4 sm:w-4" />
             </Button>
-            <Button variant="outline" size="icon" onClick={handleRotateRight} title="Rotar derecha">
-              <RotateCw className="h-4 w-4" />
+            <Button
+              variant="outline"
+              size="icon"
+              className="h-8 w-8 sm:h-9 sm:w-9 bg-transparent"
+              onClick={handleRotateRight}
+              title="Rotar derecha"
+            >
+              <RotateCw className="h-3 w-3 sm:h-4 sm:w-4" />
             </Button>
-            <div className="w-px h-6 bg-border mx-2" />
-            <Button 
-              variant={flipH ? "default" : "outline"} 
-              size="icon" 
+            <div className="w-px h-6 bg-border mx-1 hidden sm:block" />
+            <Button
+              variant={flipH ? "default" : "outline"}
+              size="icon"
+              className="h-8 w-8 sm:h-9 sm:w-9"
               onClick={handleFlipHorizontal}
               title="Voltear horizontal"
             >
-              <FlipHorizontal className="h-4 w-4" />
+              <FlipHorizontal className="h-3 w-3 sm:h-4 sm:w-4" />
             </Button>
-            <Button 
-              variant={flipV ? "default" : "outline"} 
-              size="icon" 
+            <Button
+              variant={flipV ? "default" : "outline"}
+              size="icon"
+              className="h-8 w-8 sm:h-9 sm:w-9"
               onClick={handleFlipVertical}
               title="Voltear vertical"
             >
-              <FlipVertical className="h-4 w-4" />
+              <FlipVertical className="h-3 w-3 sm:h-4 sm:w-4" />
             </Button>
-            <div className="w-px h-6 bg-border mx-2" />
-            <Button variant="ghost" size="sm" onClick={handleReset}>
+            <div className="w-px h-6 bg-border mx-1 hidden sm:block" />
+            <Button variant="ghost" size="sm" onClick={handleReset} className="text-xs sm:text-sm h-8 sm:h-9">
               Restablecer
             </Button>
           </div>
 
           {/* Info */}
-          <p className="text-xs text-muted-foreground text-center">
+          <p className="text-[10px] sm:text-xs text-muted-foreground text-center text-balance">
             Proporción fija: 2:3 (formato retrato estándar)
           </p>
         </div>
 
-        <DialogFooter className="p-6 pt-0">
-          <Button variant="outline" onClick={handleCancel}>
+        <DialogFooter className="p-3 sm:p-6 pt-0 flex-row gap-2">
+          <Button variant="outline" onClick={handleCancel} className="flex-1 sm:flex-none bg-transparent">
             Cancelar
           </Button>
-          <Button onClick={handleConfirm}>
+          <Button onClick={handleConfirm} className="flex-1 sm:flex-none">
             Aplicar Recorte
           </Button>
         </DialogFooter>

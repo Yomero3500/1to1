@@ -41,7 +41,7 @@ export default function RegisterPage() {
 
     try {
       const { user, session } = await signUp(email, password, name)
-      
+
       if (session) {
         // User is automatically signed in (email confirmation disabled)
         router.push("/dashboard")
@@ -61,21 +61,21 @@ export default function RegisterPage() {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background p-4">
         <Card className="w-full max-w-md">
-          <CardHeader className="space-y-1 text-center">
+          <CardHeader className="space-y-1 text-center px-4 sm:px-6">
             <div className="flex items-center justify-center gap-2 mb-2">
               <div className="bg-green-500 text-white p-2 rounded-lg">
-                <CheckCircle2 className="h-6 w-6" />
+                <CheckCircle2 className="h-5 w-5 sm:h-6 sm:w-6" />
               </div>
             </div>
-            <CardTitle className="text-2xl">¡Revisa tu correo!</CardTitle>
-            <CardDescription>
-              Hemos enviado un enlace de confirmación a <strong>{email}</strong>. 
-              Por favor, revisa tu bandeja de entrada y haz clic en el enlace para activar tu cuenta.
+            <CardTitle className="text-xl sm:text-2xl">¡Revisa tu correo!</CardTitle>
+            <CardDescription className="text-sm text-balance">
+              Hemos enviado un enlace de confirmación a <strong className="break-all">{email}</strong>. Por favor,
+              revisa tu bandeja de entrada y haz clic en el enlace para activar tu cuenta.
             </CardDescription>
           </CardHeader>
-          <CardFooter>
+          <CardFooter className="px-4 sm:px-6">
             <Link href="/login" className="w-full">
-              <Button variant="outline" className="w-full">
+              <Button variant="outline" className="w-full bg-transparent">
                 Volver al inicio de sesión
               </Button>
             </Link>
@@ -88,26 +88,30 @@ export default function RegisterPage() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-background p-4">
       <Card className="w-full max-w-md">
-        <CardHeader className="space-y-1 text-center">
+        <CardHeader className="space-y-1 text-center px-4 sm:px-6">
           <div className="flex items-center justify-center gap-2 mb-2">
             <div className="bg-primary text-primary-foreground p-2 rounded-lg">
-              <ImageIcon className="h-6 w-6" />
+              <ImageIcon className="h-5 w-5 sm:h-6 sm:w-6" />
             </div>
-            <h1 className="text-2xl font-semibold tracking-tight">FrameFix</h1>
+            <h1 className="text-xl sm:text-2xl font-semibold tracking-tight">FrameFix</h1>
           </div>
-          <CardTitle className="text-2xl">Crear Cuenta</CardTitle>
-          <CardDescription>Completa el formulario para crear tu cuenta</CardDescription>
+          <CardTitle className="text-xl sm:text-2xl">Crear Cuenta</CardTitle>
+          <CardDescription className="text-sm text-balance">
+            Completa el formulario para crear tu cuenta
+          </CardDescription>
         </CardHeader>
         <form onSubmit={handleRegister}>
-          <CardContent className="space-y-4">
+          <CardContent className="space-y-4 px-4 sm:px-6">
             {error && (
               <Alert variant="destructive">
                 <AlertCircle className="h-4 w-4" />
-                <AlertDescription>{error}</AlertDescription>
+                <AlertDescription className="text-sm">{error}</AlertDescription>
               </Alert>
             )}
             <div className="space-y-2">
-              <Label htmlFor="name">Nombre Completo</Label>
+              <Label htmlFor="name" className="text-sm">
+                Nombre Completo
+              </Label>
               <Input
                 id="name"
                 type="text"
@@ -116,10 +120,13 @@ export default function RegisterPage() {
                 onChange={(e) => setName(e.target.value)}
                 required
                 disabled={isLoading}
+                className="text-base sm:text-sm"
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
+              <Label htmlFor="email" className="text-sm">
+                Email
+              </Label>
               <Input
                 id="email"
                 type="email"
@@ -128,10 +135,13 @@ export default function RegisterPage() {
                 onChange={(e) => setEmail(e.target.value)}
                 required
                 disabled={isLoading}
+                className="text-base sm:text-sm"
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="password">Contraseña</Label>
+              <Label htmlFor="password" className="text-sm">
+                Contraseña
+              </Label>
               <Input
                 id="password"
                 type="password"
@@ -141,10 +151,13 @@ export default function RegisterPage() {
                 required
                 disabled={isLoading}
                 minLength={6}
+                className="text-base sm:text-sm"
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="confirmPassword">Confirmar Contraseña</Label>
+              <Label htmlFor="confirmPassword" className="text-sm">
+                Confirmar Contraseña
+              </Label>
               <Input
                 id="confirmPassword"
                 type="password"
@@ -153,14 +166,15 @@ export default function RegisterPage() {
                 onChange={(e) => setConfirmPassword(e.target.value)}
                 required
                 disabled={isLoading}
+                className="text-base sm:text-sm"
               />
             </div>
           </CardContent>
-          <CardFooter className="flex flex-col gap-4">
+          <CardFooter className="flex flex-col gap-4 px-4 sm:px-6">
             <Button type="submit" className="w-full" disabled={isLoading}>
               {isLoading ? "Creando cuenta..." : "Registrarse"}
             </Button>
-            <p className="text-sm text-muted-foreground text-center">
+            <p className="text-xs sm:text-sm text-muted-foreground text-center text-balance">
               {"¿Ya tienes cuenta? "}
               <Link href="/login" className="text-primary hover:underline font-medium">
                 Inicia sesión aquí
