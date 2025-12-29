@@ -60,6 +60,7 @@ export function useProcessingStatus({
   const fetchStatus = useCallback(async () => {
     try {
       const result = await getBatchProcessingStatus(batchId);
+      console.log(`[ProcessingStatus] Estado batch ${batchId}:`, result);
       
       const progress = result.total > 0 
         ? Math.round((result.completed / result.total) * 100)
@@ -68,6 +69,9 @@ export function useProcessingStatus({
       const isComplete = result.total > 0 && 
         result.pending === 0 && 
         result.processing === 0;
+
+      console.log(`[ProcessingStatus] Progreso: ${progress}%, Completo: ${isComplete}`);
+      console.log(`[ProcessingStatus] Total: ${result.total}, Pending: ${result.pending}, Processing: ${result.processing}, Completed: ${result.completed}, Failed: ${result.failed}`);
 
       setStatus({
         ...result,
@@ -79,6 +83,7 @@ export function useProcessingStatus({
 
       return isComplete;
     } catch (err) {
+      console.error(`[ProcessingStatus] Error:`, err);
       setError(err instanceof Error ? err.message : "Error desconocido");
       return false;
     }
@@ -101,14 +106,17 @@ export function useProcessingStatus({
     const poll = async () => {
       if (isCancelled) return;
 
+      console.log(`[ProcessingStatus] Polling estado del batch ${batchId}...`);
       const isComplete = await fetchStatus();
 
       if (isComplete) {
+        console.log(`[ProcessingStatus] ✅ Procesamiento completado!`);
         setIsPolling(false);
         onComplete?.();
         return;
       }
 
+      console.log(`[ProcessingStatus] Aún procesando, siguiente poll en ${pollingInterval}ms`);
       if (!isCancelled && isPolling) {
         timeoutId = setTimeout(poll, pollingInterval);
       }

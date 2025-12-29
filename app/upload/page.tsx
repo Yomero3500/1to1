@@ -100,13 +100,15 @@ export default function UploadPage() {
         
         // Upload to Storage
         const originalUrl = await uploadImage(fileToUpload, batch.id)
+        console.log(`[Upload] Imagen ${i + 1} subida: ${originalUrl}`)
         
-        // Create image record with crop data
+        // Create image record with crop data - status 'pending' for Inngest processing
         await createImage({
           batch_id: batch.id,
           original_url: originalUrl,
-          status: 'completed'
+          status: 'pending' // Changed from 'completed' to trigger Inngest processing
         })
+        console.log(`[Upload] Registro de imagen creado para batch ${batch.id}`)
       }
 
       setUploadProgress("¡Lote creado exitosamente!")

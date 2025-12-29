@@ -58,29 +58,34 @@ export function useBatchProcessing({
     pollingInterval: 2000,
     onComplete: () => {
       if (redirectOnComplete) {
-        router.push(`/results?batchId=${batchId}`);
+        router.push(`/results?batch=${batchId}`);
       }
     },
   });
 
   const startProcessing = async () => {
+    console.log(`[BatchProcessing Hook] Iniciando procesamiento del batch: ${batchId}`);
     setIsStarting(true);
     setStartError(null);
 
     try {
       const result = await startBatchProcessing(batchId);
+      console.log(`[BatchProcessing Hook] Resultado:`, result);
 
       if (!result.success) {
+        console.error(`[BatchProcessing Hook] Error: ${result.errors.join(", ")}`);
         setStartError(result.errors.join(", ") || "Error al iniciar procesamiento");
         return;
       }
 
+      console.log(`[BatchProcessing Hook] ✅ ${result.processedCount} imágenes enviadas a procesar`);
       setHasStarted(true);
       startPolling();
 
       // Refetch inmediato para mostrar estado actualizado
       await refetch();
     } catch (err) {
+      console.error(`[BatchProcessing Hook] Error:`, err);
       setStartError(err instanceof Error ? err.message : "Error desconocido");
     } finally {
       setIsStarting(false);

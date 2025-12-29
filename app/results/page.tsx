@@ -54,10 +54,17 @@ function ResultsContent() {
     if (!batchId) return
     
     try {
+      console.log(`[Results] Cargando datos del batch: ${batchId}`)
       const [batchData, imagesData] = await Promise.all([
         getBatchById(batchId),
         getImagesByBatchId(batchId)
       ])
+      
+      console.log(`[Results] Batch:`, batchData)
+      console.log(`[Results] Imágenes encontradas: ${imagesData.length}`)
+      imagesData.forEach((img, i) => {
+        console.log(`[Results] Imagen ${i + 1}: status=${img.status}, original_url=${img.original_url?.substring(0, 60)}..., processed_url=${img.processed_url || 'null'}`)
+      })
       
       setBatch(batchData)
       
@@ -83,8 +90,14 @@ function ResultsContent() {
     const image = images.find(img => img.id === imageId)
     if (!image) return
     
+    console.log(`[Results] Descargando imagen ${imageId}: ${image.preview}`)
+    
     try {
       const response = await fetch(image.preview)
+      if (!response.ok) {
+        console.error(`[Results] Error HTTP ${response.status}: ${response.statusText}`)
+        throw new Error(`HTTP ${response.status}`)
+      }
       const blob = await response.blob()
       const url = window.URL.createObjectURL(blob)
       const a = document.createElement('a')

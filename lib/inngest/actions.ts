@@ -24,6 +24,8 @@ export async function startImageProcessing(
   originalUrl: string,
   cropData?: { x: number; y: number; width: number; height: number }
 ): Promise<StartProcessingResult> {
+  console.log(`[ImageProcessing] Iniciando procesamiento de imagen: ${imageId}`);
+  console.log(`[ImageProcessing] URL original: ${originalUrl?.substring(0, 80)}...`);
   try {
     // Obtener usuario actual
     const supabase = await createClient();
@@ -51,6 +53,7 @@ export async function startImageProcessing(
     }
 
     // Enviar evento a Inngest
+    console.log(`[ImageProcessing] Enviando evento a Inngest para imagen: ${imageId}`);
     const { ids } = await inngest.send({
       name: "image/process.new",
       data: {
@@ -61,6 +64,7 @@ export async function startImageProcessing(
         cropData,
       },
     });
+    console.log(`[ImageProcessing] ✅ Evento enviado con ID: ${ids[0]}`);
 
     // Actualizar estado inmediatamente a "pending" (pre-processing)
     await supabase
@@ -69,7 +73,7 @@ export async function startImageProcessing(
       .eq("id", imageId);
 
     // Revalidar la página de resultados
-    revalidatePath(`/results?batchId=${batchId}`);
+    revalidatePath(`/results?batch=${batchId}`);
 
     return {
       success: true,
@@ -90,26 +94,31 @@ export async function startImageProcessing(
 export async function startBatchProcessing(
   batchId: string
 ): Promise<{ success: boolean; processedCount: number; errors: string[] }> {
+  console.log(`[BatchProcessing] Iniciando procesamiento de batch: ${batchId}`);
   try {
     const supabase = await createClient();
     const { data: { user }, error: userError } = await supabase.auth.getUser();
 
     if (userError || !user) {
+      console.log(`[BatchProcessing] Error: Usuario no autenticado`);
       return {
         success: false,
         processedCount: 0,
         errors: ["Usuario no autenticado"],
       };
     }
+    console.log(`[BatchProcessing] Usuario autenticado: ${user.id}`);
 
     // Obtener todas las imágenes pendientes del batch
+    console.log(`[BatchProcessing] Buscando imágenes pendientes para batch: ${batchId}`);
     const { data: images, error: imagesError } = await supabase
       .from("images")
-      .select("id, original_url")
+      .select("id, original_url, status")
       .eq("batch_id", batchId)
       .in("status", ["pending", "failed"]); // Procesar pendientes y fallidas
 
     if (imagesError) {
+      console.log(`[BatchProcessing] Error obteniendo imágenes: ${imagesError.message}`);
       return {
         success: false,
         processedCount: 0,
@@ -117,7 +126,13 @@ export async function startBatchProcessing(
       };
     }
 
+    console.log(`[BatchProcessing] Imágenes encontradas: ${images?.length || 0}`);
+    if (images) {
+      images.forEach((img, i) => console.log(`  [${i}] ID: ${img.id}, Status: ${img.status}, URL: ${img.original_url?.substring(0, 50)}...`));
+    }
+
     if (!images || images.length === 0) {
+      console.log(`[BatchProcessing] No hay imágenes pendientes para procesar`);
       return {
         success: true,
         processedCount: 0,
@@ -129,7 +144,9 @@ export async function startBatchProcessing(
     let processedCount = 0;
 
     // Enviar eventos para cada imagen
+    console.log(`[BatchProcessing] Enviando ${images.length} imágenes a Inngest...`);
     for (const image of images) {
+      console.log(`[BatchProcessing] Procesando imagen: ${image.id}`);
       const result = await startImageProcessing(
         image.id,
         batchId,
@@ -138,12 +155,14 @@ export async function startBatchProcessing(
 
       if (result.success) {
         processedCount++;
+        console.log(`[BatchProcessing] ✅ Imagen ${image.id} enviada a Inngest, eventId: ${result.eventId}`);
       } else {
+        console.log(`[BatchProcessing] ❌ Error con imagen ${image.id}: ${result.error}`);
         errors.push(`Imagen ${image.id}: ${result.error}`);
       }
     }
 
-    revalidatePath(`/results?batchId=${batchId}`);
+    revalidatePath(`/results?batch=${batchId}`);
 
     return {
       success: errors.length === 0,

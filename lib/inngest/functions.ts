@@ -40,14 +40,25 @@ export const processImageFlow = inngest.createFunction(
   { event: "image/process.new" },
   async ({ event, step }) => {
     const { imageId, batchId, userId, originalUrl, cropData } = event.data as ImageProcessEvent["data"];
+    
+    console.log(`[Inngest] 🚀 Iniciando procesamiento de imagen: ${imageId}`);
+    console.log(`[Inngest] Batch: ${batchId}, User: ${userId}`);
+    console.log(`[Inngest] URL original: ${originalUrl}`);
 
     // Actualizar estado a "processing"
     await step.run("update-status-processing", async () => {
+      console.log(`[Inngest][${imageId}] Actualizando estado a 'processing'...`);
       const supabase = await createClient();
-      await supabase
+      const { error } = await supabase
         .from("images")
         .update({ status: "processing" })
         .eq("id", imageId);
+      
+      if (error) {
+        console.error(`[Inngest][${imageId}] Error actualizando estado:`, error);
+      } else {
+        console.log(`[Inngest][${imageId}] ✅ Estado actualizado a 'processing'`);
+      }
       
       return { status: "processing" };
     });

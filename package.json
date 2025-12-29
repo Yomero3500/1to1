@@ -5,6 +5,7 @@
   "scripts": {
     "build": "next build",
     "dev": "next dev",
+    "dev:inngest": "npx inngest-cli@latest dev",
     "lint": "eslint .",
     "start": "next start"
   },
