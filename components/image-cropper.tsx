@@ -92,7 +92,7 @@ export function ImageCropper({ imageSrc, imageId, isOpen, onClose, onCropComplet
     }
   }, [imageSrc, flipH, flipV])
 
-  // Reset cuando se abre el dialog
+  // Reset cuando se abre el dialog y aplicar doble flip para forzar recálculo
   useEffect(() => {
     if (isOpen) {
       setCrop({ x: 0, y: 0 })
@@ -101,6 +101,20 @@ export function ImageCropper({ imageSrc, imageId, isOpen, onClose, onCropComplet
       setFlipH(false)
       setFlipV(false)
       setProcessedImageSrc(imageSrc)
+      
+      // Workaround: aplicar doble flip horizontal para forzar recálculo del cropper
+      // Esto corrige el problema visual de posicionamiento
+      const timer1 = setTimeout(() => {
+        setFlipH(true)
+      }, 50)
+      const timer2 = setTimeout(() => {
+        setFlipH(false)
+      }, 100)
+      
+      return () => {
+        clearTimeout(timer1)
+        clearTimeout(timer2)
+      }
     }
   }, [isOpen, imageSrc])
 
