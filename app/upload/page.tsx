@@ -159,7 +159,7 @@ export default function UploadPage() {
 
       <main className="container mx-auto p-4 md:p-6 space-y-4 md:space-y-6">
         {/* Back Button */}
-        <Link href="/dashboard">
+        <Link href="/dashboard" className="inline-block mb-2">
           <Button variant="ghost" className="gap-2 -ml-2">
             <ArrowLeft className="h-4 w-4" />
             <span className="hidden sm:inline">Volver al Dashboard</span>
