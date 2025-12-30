@@ -65,7 +65,7 @@ function ResultsContent() {
   const { status: processingStatus, isPolling, startPolling, stopPolling, refetch } = useProcessingStatus({
     batchId: batchId || "",
     enabled: !!batchId,
-    pollingInterval: 2000,
+    pollingInterval: 5000,
     onComplete: () => {
       console.log("[Results] ✅ Procesamiento completado!")
       loadBatchData() // Recargar datos cuando termine
@@ -133,7 +133,7 @@ function ResultsContent() {
     if (isPolling && !isLoading) {
       const interval = setInterval(() => {
         loadBatchData()
-      }, 3000)
+      }, 5000) // 5 segundos para reducir solicitudes
       return () => clearInterval(interval)
     }
   }, [isPolling, isLoading, loadBatchData])

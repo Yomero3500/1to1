@@ -55,7 +55,7 @@ export function useBatchProcessing({
   } = useProcessingStatus({
     batchId,
     enabled: hasStarted,
-    pollingInterval: 2000,
+    pollingInterval: 5000,
     onComplete: () => {
       if (redirectOnComplete) {
         router.push(`/results?batch=${batchId}`);
