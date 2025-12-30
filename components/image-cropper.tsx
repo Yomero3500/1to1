@@ -266,7 +266,7 @@ export function ImageCropper({ imageSrc, imageId, isOpen, onClose, onCropComplet
             onCropComplete={onCropCompleteCallback}
             cropShape="rect"
             showGrid={true}
-            objectFit="contain"
+            objectFit="auto-cover"
             style={{
               containerStyle: {
                 width: "100%",

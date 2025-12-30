@@ -46,15 +46,20 @@ export default function UploadPage() {
 
   // Handler para actualizar una imagen individual (para análisis IA en móvil)
   const handleUpdateImage = (imageId: string, updates: Partial<UploadedImage>) => {
+    // Actualizar en el array de images
     setImages((prev) =>
       prev.map((img) =>
         img.id === imageId ? { ...img, ...updates } : img
       )
     )
     // También actualizar selectedImage si es la imagen que se está actualizando
-    if (selectedImage?.id === imageId) {
-      setSelectedImage((prev) => prev ? { ...prev, ...updates } : null)
-    }
+    // Usar callback para evitar stale closure
+    setSelectedImage((prev) => {
+      if (prev?.id === imageId) {
+        return { ...prev, ...updates }
+      }
+      return prev
+    })
   }
 
   const handleCropImage = (image: UploadedImage) => {
