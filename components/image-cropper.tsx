@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useCallback } from "react"
+import { useState, useCallback, useEffect } from "react"
 import Cropper, { type Area, type Point } from "react-easy-crop"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
@@ -22,6 +22,36 @@ interface ImageCropperProps {
   onCropComplete: (imageId: string, cropData: CropData, croppedImageUrl: string) => void
 }
 
+// Función para crear imagen con flip aplicado
+async function createFlippedImage(src: string, flipH: boolean, flipV: boolean): Promise<string> {
+  if (!flipH && !flipV) return src
+  
+  return new Promise((resolve, reject) => {
+    const img = new Image()
+    img.crossOrigin = "anonymous"
+    img.onload = () => {
+      const canvas = document.createElement("canvas")
+      canvas.width = img.width
+      canvas.height = img.height
+      const ctx = canvas.getContext("2d")
+      if (!ctx) {
+        reject(new Error("No 2d context"))
+        return
+      }
+      
+      ctx.save()
+      ctx.translate(flipH ? img.width : 0, flipV ? img.height : 0)
+      ctx.scale(flipH ? -1 : 1, flipV ? -1 : 1)
+      ctx.drawImage(img, 0, 0)
+      ctx.restore()
+      
+      resolve(canvas.toDataURL("image/jpeg", 0.95))
+    }
+    img.onerror = reject
+    img.src = src
+  })
+}
+
 export function ImageCropper({ imageSrc, imageId, isOpen, onClose, onCropComplete }: ImageCropperProps) {
   const [crop, setCrop] = useState<Point>({ x: 0, y: 0 })
   const [zoom, setZoom] = useState(1)
@@ -29,6 +59,50 @@ export function ImageCropper({ imageSrc, imageId, isOpen, onClose, onCropComplet
   const [flipH, setFlipH] = useState(false)
   const [flipV, setFlipV] = useState(false)
   const [croppedAreaPixels, setCroppedAreaPixels] = useState<Area | null>(null)
+  const [processedImageSrc, setProcessedImageSrc] = useState<string>(imageSrc)
+  const [isProcessingFlip, setIsProcessingFlip] = useState(false)
+
+  // Actualizar imagen procesada cuando cambian los flips
+  useEffect(() => {
+    let cancelled = false
+    
+    const processFlip = async () => {
+      setIsProcessingFlip(true)
+      try {
+        const flipped = await createFlippedImage(imageSrc, flipH, flipV)
+        if (!cancelled) {
+          setProcessedImageSrc(flipped)
+        }
+      } catch (error) {
+        console.error("Error flipping image:", error)
+        if (!cancelled) {
+          setProcessedImageSrc(imageSrc)
+        }
+      } finally {
+        if (!cancelled) {
+          setIsProcessingFlip(false)
+        }
+      }
+    }
+    
+    processFlip()
+    
+    return () => {
+      cancelled = true
+    }
+  }, [imageSrc, flipH, flipV])
+
+  // Reset cuando se abre el dialog
+  useEffect(() => {
+    if (isOpen) {
+      setCrop({ x: 0, y: 0 })
+      setZoom(1)
+      setRotation(0)
+      setFlipH(false)
+      setFlipV(false)
+      setProcessedImageSrc(imageSrc)
+    }
+  }, [isOpen, imageSrc])
 
   const onCropChange = useCallback((crop: Point) => {
     setCrop(crop)
@@ -74,7 +148,7 @@ export function ImageCropper({ imageSrc, imageId, isOpen, onClose, onCropComplet
 
     return new Promise((resolve, reject) => {
       image.onload = () => {
-        // Primero, crear un canvas con la imagen rotada/volteada
+        // Crear canvas con la imagen rotada (el flip ya está aplicado en processedImageSrc)
         const rotatedCanvas = document.createElement("canvas")
         const rotatedCtx = rotatedCanvas.getContext("2d")
 
@@ -91,11 +165,10 @@ export function ImageCropper({ imageSrc, imageId, isOpen, onClose, onCropComplet
         rotatedCanvas.width = rotatedWidth
         rotatedCanvas.height = rotatedHeight
 
-        // Aplicar transformaciones en el orden correcto
+        // Aplicar solo rotación (el flip ya está en la imagen)
         rotatedCtx.save()
         rotatedCtx.translate(rotatedWidth / 2, rotatedHeight / 2)
         rotatedCtx.rotate((rotation * Math.PI) / 180)
-        rotatedCtx.scale(flipH ? -1 : 1, flipV ? -1 : 1)
         rotatedCtx.drawImage(image, -image.width / 2, -image.height / 2)
         rotatedCtx.restore()
 
@@ -139,9 +212,9 @@ export function ImageCropper({ imageSrc, imageId, isOpen, onClose, onCropComplet
       }
 
       image.onerror = () => reject(new Error("Failed to load image"))
-      image.src = imageSrc
+      image.src = processedImageSrc
     })
-  }, [croppedAreaPixels, imageSrc, rotation, flipH, flipV])
+  }, [croppedAreaPixels, processedImageSrc, rotation])
 
   const handleConfirm = async () => {
     if (!croppedAreaPixels) return
@@ -177,8 +250,13 @@ export function ImageCropper({ imageSrc, imageId, isOpen, onClose, onCropComplet
         </DialogHeader>
 
         <div className="flex-1 relative bg-black mx-0 sm:mx-4 overflow-hidden touch-none">
+          {isProcessingFlip && (
+            <div className="absolute inset-0 flex items-center justify-center bg-black/50 z-10">
+              <div className="text-white text-sm">Aplicando transformación...</div>
+            </div>
+          )}
           <Cropper
-            image={imageSrc}
+            image={processedImageSrc}
             crop={crop}
             zoom={zoom}
             rotation={rotation}
@@ -188,14 +266,11 @@ export function ImageCropper({ imageSrc, imageId, isOpen, onClose, onCropComplet
             onCropComplete={onCropCompleteCallback}
             cropShape="rect"
             showGrid={true}
-            restrictPosition={true}
+            objectFit="contain"
             style={{
               containerStyle: {
                 width: "100%",
                 height: "100%",
-              },
-              mediaStyle: {
-                transform: `scale(${flipH ? -1 : 1}, ${flipV ? -1 : 1})`,
               },
             }}
           />
