@@ -2,16 +2,8 @@
 
 import { useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
-import { ImageIcon, LogOut, User } from "lucide-react"
+import { ImageIcon, LogOut } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { signOut, getUser } from "@/lib/supabase/auth"
 import type { User as SupabaseUser } from "@supabase/supabase-js"
@@ -63,35 +55,31 @@ export function DashboardHeader() {
           <h1 className="text-lg sm:text-xl font-semibold tracking-tight">FrameFix</h1>
         </div>
 
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="ghost" className="relative h-9 w-9 sm:h-10 sm:w-10 rounded-full">
-              <Avatar className="h-9 w-9 sm:h-10 sm:w-10">
-                <AvatarFallback className="bg-primary text-primary-foreground text-xs sm:text-sm">
-                  {getUserInitials()}
-                </AvatarFallback>
-              </Avatar>
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent className="w-56" align="end" forceMount>
-            <DropdownMenuLabel className="font-normal">
-              <div className="flex flex-col gap-1">
-                <p className="text-sm font-medium leading-none">{getUserDisplayName()}</p>
-                <p className="text-xs leading-none text-muted-foreground truncate">{user?.email || ""}</p>
-              </div>
-            </DropdownMenuLabel>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem>
-              <User className="mr-2 h-4 w-4" />
-              <span>Perfil</span>
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={handleLogout}>
-              <LogOut className="mr-2 h-4 w-4" />
-              <span>Cerrar Sesión</span>
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+        <div className="flex items-center gap-2 sm:gap-3">
+          {/* User Info */}
+          <div className="hidden sm:flex flex-col items-end">
+            <p className="text-sm font-medium leading-none">{getUserDisplayName()}</p>
+            <p className="text-xs leading-none text-muted-foreground">{user?.email || ""}</p>
+          </div>
+          
+          {/* Avatar */}
+          <Avatar className="h-9 w-9 sm:h-10 sm:w-10">
+            <AvatarFallback className="bg-primary text-primary-foreground text-xs sm:text-sm">
+              {getUserInitials()}
+            </AvatarFallback>
+          </Avatar>
+
+          {/* Logout Button */}
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            onClick={handleLogout}
+            className="gap-2 text-muted-foreground hover:text-foreground"
+          >
+            <LogOut className="h-4 w-4" />
+            <span className="hidden sm:inline">Salir</span>
+          </Button>
+        </div>
       </div>
     </header>
   )

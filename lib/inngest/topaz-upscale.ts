@@ -15,7 +15,7 @@ const MAX_POLLING_ATTEMPTS = 120; // 6 minutos máximo
  */
 export async function upscaleWithTopaz(
   imageUrl: string,
-  scaleFactor: number = 2
+  scaleFactor: number = 4
 ): Promise<TopazUpscaleResult> {
   const apiKey = process.env.TOPAZ_API_KEY;
   

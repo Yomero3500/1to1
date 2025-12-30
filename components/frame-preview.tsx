@@ -82,8 +82,8 @@ export function FramePreview({ imageSrc, imageId, aspectRatio = 2 / 3, aiSuggest
         </Alert>
       )}
 
-      {/* Crop Button */}
-      {needsCrop && onCropRequested && (
+      {/* Crop Button - siempre visible para mejorar UX */}
+      {onCropRequested && (
         <Button
           variant="outline"
           size="sm"
@@ -91,7 +91,7 @@ export function FramePreview({ imageSrc, imageId, aspectRatio = 2 / 3, aiSuggest
           onClick={() => onCropRequested(imageId)}
         >
           <Crop className="h-3 w-3 sm:h-4 sm:w-4" />
-          Recortar Imagen
+          {needsCrop ? "Recortar Imagen" : "Ajustar Recorte"}
         </Button>
       )}
     </Card>
