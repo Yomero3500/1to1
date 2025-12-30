@@ -249,7 +249,7 @@ export function ImageCropper({ imageSrc, imageId, isOpen, onClose, onCropComplet
           <DialogTitle className="text-base sm:text-lg">Recortar Imagen</DialogTitle>
         </DialogHeader>
 
-        <div className="flex-1 relative bg-black mx-0 sm:mx-4 overflow-hidden touch-none">
+        <div className="flex-1 relative bg-black overflow-hidden touch-none">
           {isProcessingFlip && (
             <div className="absolute inset-0 flex items-center justify-center bg-black/50 z-10">
               <div className="text-white text-sm">Aplicando transformación...</div>
@@ -266,11 +266,13 @@ export function ImageCropper({ imageSrc, imageId, isOpen, onClose, onCropComplet
             onCropComplete={onCropCompleteCallback}
             cropShape="rect"
             showGrid={true}
-            objectFit="auto-cover"
             style={{
               containerStyle: {
                 width: "100%",
                 height: "100%",
+              },
+              cropAreaStyle: {
+                border: "2px solid rgba(255, 255, 255, 0.8)",
               },
             }}
           />
