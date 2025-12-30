@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { useCallback, useState } from "react"
+import { useCallback, useState, useRef } from "react"
 import { Card } from "@/components/ui/card"
 import { Upload, X, Crop, Check, Sparkles, Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -41,6 +41,14 @@ export function ImageUploadZone({
   onAnalysisComplete,
 }: ImageUploadZoneProps) {
   const [isDragging, setIsDragging] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+
+  // Función para abrir el selector de archivos
+  const handleSelectClick = useCallback((e: React.MouseEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    fileInputRef.current?.click()
+  }, [])
 
   // Función para convertir File a base64
   const fileToBase64 = useCallback((file: File): Promise<{ base64: string; mimeType: string }> => {
@@ -176,21 +184,35 @@ export function ImageUploadZone({
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
       >
-        <label className="flex flex-col items-center justify-center p-8 sm:p-12 cursor-pointer">
-          <Upload
-            className={`h-10 w-10 sm:h-12 sm:w-12 mb-3 sm:mb-4 ${isDragging ? "text-primary" : "text-muted-foreground"}`}
-          />
-          <p className="text-base sm:text-lg font-medium mb-2 text-center text-balance">
-            Arrastra y suelta tus imágenes aquí
-          </p>
-          <p className="text-xs sm:text-sm text-muted-foreground mb-4 text-center">
-            o haz clic para seleccionar archivos
-          </p>
-          <input type="file" multiple accept="image/*" onChange={handleFileInput} className="hidden" />
-          <Button type="button" variant="secondary" size="sm">
+        <div className="flex flex-col items-center justify-center p-8 sm:p-12">
+          <label className="cursor-pointer flex flex-col items-center">
+            <Upload
+              className={`h-10 w-10 sm:h-12 sm:w-12 mb-3 sm:mb-4 ${isDragging ? "text-primary" : "text-muted-foreground"}`}
+            />
+            <p className="text-base sm:text-lg font-medium mb-2 text-center text-balance">
+              Arrastra y suelta tus imágenes aquí
+            </p>
+            <p className="text-xs sm:text-sm text-muted-foreground mb-4 text-center">
+              o haz clic para seleccionar archivos
+            </p>
+            <input 
+              ref={fileInputRef}
+              type="file" 
+              multiple 
+              accept="image/*" 
+              onChange={handleFileInput} 
+              className="hidden" 
+            />
+          </label>
+          <Button 
+            type="button" 
+            variant="secondary" 
+            size="sm"
+            onClick={handleSelectClick}
+          >
             Seleccionar Imágenes
           </Button>
-        </label>
+        </div>
       </Card>
 
       {/* Uploaded Images Preview */}

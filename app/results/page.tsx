@@ -443,6 +443,9 @@ function ResultsContent() {
                   <p className="text-sm text-muted-foreground">
                     {completedCount} de {images.length} completadas ({processingStatus.progress}%)
                   </p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    ⏱️ El procesamiento puede tomar 1-3 minutos por imagen. La página se actualiza automáticamente.
+                  </p>
                   {/* Barra de progreso */}
                   <div className="mt-2 h-2 bg-blue-200 dark:bg-blue-900 rounded-full overflow-hidden">
                     <div 
