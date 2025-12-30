@@ -83,7 +83,7 @@ export async function processFrameWithSharp(
   const photoAreaWidth = frameWidth - (outerFrameSize * 2) - (paspartuSize * 2);
   const photoAreaHeight = frameHeight - (outerFrameSize * 2) - (paspartuSize * 2);
 
-  // Redimensionar la foto para que encaje en el área disponible (proporción 3:2)
+  // Redimensionar la foto para que encaje en el área disponible
   const photoBuffer = await image
     .resize(photoAreaWidth, photoAreaHeight, {
       fit: "cover",
@@ -92,37 +92,23 @@ export async function processFrameWithSharp(
     .jpeg({ quality: 95 })
     .toBuffer();
 
-  // Crear el paspartú con un color sólido derivado de la imagen
-  // En lugar de blur que crea sombras, extraemos el color promedio
+  // Crear el paspartú con la imagen desenfocada de fondo
   const paspartuWidth = photoAreaWidth + (paspartuSize * 2);
   const paspartuHeight = photoAreaHeight + (paspartuSize * 2);
   
-  // Obtener el color promedio de la imagen para el paspartú
-  const { dominant } = await sharp(imageBuffer)
-    .resize(10, 10, { fit: "cover" })
-    .stats();
-  
-  // Oscurecer el color dominante para el paspartú
-  const paspartuColor = {
-    r: Math.round(dominant.r * 0.6),
-    g: Math.round(dominant.g * 0.6),
-    b: Math.round(dominant.b * 0.6),
-  };
-  
-  // Crear paspartú con color sólido
-  const paspartuBuffer = await sharp({
-    create: {
-      width: paspartuWidth,
-      height: paspartuHeight,
-      channels: 3,
-      background: paspartuColor,
-    },
-  })
-    .jpeg({ quality: 95 })
+  // Crear fondo borroso para el paspartú (imagen escalada y desenfocada)
+  const blurredBackground = await sharp(photoBuffer)
+    .resize(paspartuWidth, paspartuHeight, {
+      fit: "cover",
+      position: "center",
+    })
+    .blur(50) // Desenfoque fuerte para el paspartú
+    .modulate({ brightness: 0.7 }) // Oscurecer un poco
+    .jpeg({ quality: 90 })
     .toBuffer();
 
   // Componer el paspartú con la foto centrada
-  const paspartuWithPhoto = await sharp(paspartuBuffer)
+  const paspartuWithPhoto = await sharp(blurredBackground)
     .composite([
       {
         input: photoBuffer,

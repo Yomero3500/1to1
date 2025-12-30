@@ -25,6 +25,7 @@ export interface UploadedImage {
 
 interface ImageUploadZoneProps {
   onImagesUploaded: (images: UploadedImage[]) => void
+  onUpdateImage?: (imageId: string, updates: Partial<UploadedImage>) => void
   images: UploadedImage[]
   onRemoveImage: (id: string) => void
   onCropImage: (image: UploadedImage) => void
@@ -33,6 +34,7 @@ interface ImageUploadZoneProps {
 
 export function ImageUploadZone({
   onImagesUploaded,
+  onUpdateImage,
   images,
   onRemoveImage,
   onCropImage,
@@ -57,63 +59,84 @@ export function ImageUploadZone({
 
   // Función para analizar imagen con IA
   const analyzeImageWithAI = useCallback(
-    async (image: UploadedImage, allImages: UploadedImage[]) => {
+    async (imageToAnalyze: UploadedImage) => {
       try {
-        const { base64, mimeType } = await fileToBase64(image.file)
+        const { base64, mimeType } = await fileToBase64(imageToAnalyze.file)
         const result = await analyzeImage(base64, mimeType)
 
         if (result.success && result.data) {
-          // Actualizar el estado de la imagen con los resultados
-          const updatedImages = allImages.map((img) =>
-            img.id === image.id ? { ...img, aiAnalysis: result.data, isAnalyzing: false } : img,
-          )
-          onImagesUploaded(updatedImages)
-          onAnalysisComplete?.(image.id, result.data)
+          // Usar onUpdateImage si está disponible (más confiable)
+          if (onUpdateImage) {
+            onUpdateImage(imageToAnalyze.id, { aiAnalysis: result.data, isAnalyzing: false })
+          }
+          onAnalysisComplete?.(imageToAnalyze.id, result.data)
         } else {
           // En caso de error, solo quitar el estado de análisis
-          const updatedImages = allImages.map((img) => (img.id === image.id ? { ...img, isAnalyzing: false } : img))
-          onImagesUploaded(updatedImages)
+          if (onUpdateImage) {
+            onUpdateImage(imageToAnalyze.id, { isAnalyzing: false })
+          }
         }
       } catch (error) {
         console.error("Error analizando imagen:", error)
-        const updatedImages = allImages.map((img) => (img.id === image.id ? { ...img, isAnalyzing: false } : img))
-        onImagesUploaded(updatedImages)
+        if (onUpdateImage) {
+          onUpdateImage(imageToAnalyze.id, { isAnalyzing: false })
+        }
       }
     },
-    [fileToBase64, onImagesUploaded, onAnalysisComplete],
+    [fileToBase64, onUpdateImage, onAnalysisComplete],
   )
 
   const processFiles = useCallback(
     (files: FileList | null) => {
-      if (!files || files.length === 0) return
+      if (!files) return
 
-      // Solo procesar el primer archivo para evitar problemas en móvil
-      const file = files[0]
-      if (!file.type.startsWith("image/")) return
+      const imageFiles = Array.from(files).filter((f) => f.type.startsWith("image/"))
+      if (imageFiles.length === 0) return
 
-      const preview = URL.createObjectURL(file)
-      const img = new Image()
+      let loadedCount = 0
+      const newImages: UploadedImage[] = []
 
-      img.onload = () => {
-        const aspectRatio = img.height / img.width
-        const uploadedImage: UploadedImage = {
-          id: `${Date.now()}-${Math.random()}`,
-          file,
-          preview,
-          originalPreview: preview,
-          aspectRatio,
-          isCropped: false,
-          isAnalyzing: true,
+      imageFiles.forEach((file) => {
+        const preview = URL.createObjectURL(file)
+        const img = new Image()
+
+        img.onload = () => {
+          const aspectRatio = img.height / img.width
+          const uploadedImage: UploadedImage = {
+            id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+            file,
+            preview,
+            originalPreview: preview,
+            aspectRatio,
+            isCropped: false,
+            isAnalyzing: true,
+          }
+
+          newImages.push(uploadedImage)
+          loadedCount++
+
+          // Cuando todas las imágenes están cargadas
+          if (loadedCount === imageFiles.length) {
+            const allImages = [...images, ...newImages]
+            onImagesUploaded(allImages)
+
+            // Iniciar análisis de IA para cada nueva imagen con un pequeño delay
+            // para evitar sobrecargar el sistema en móvil
+            newImages.forEach((newImg, index) => {
+              setTimeout(() => {
+                analyzeImageWithAI(newImg)
+              }, index * 500) // 500ms de delay entre cada análisis
+            })
+          }
         }
 
-        const allImages = [...images, uploadedImage]
-        onImagesUploaded(allImages)
+        img.onerror = () => {
+          console.error("Error loading image:", file.name)
+          loadedCount++
+        }
 
-        // Iniciar análisis de IA para la imagen
-        analyzeImageWithAI(uploadedImage, allImages)
-      }
-
-      img.src = preview
+        img.src = preview
+      })
     },
     [images, onImagesUploaded, analyzeImageWithAI],
   )
@@ -158,14 +181,14 @@ export function ImageUploadZone({
             className={`h-10 w-10 sm:h-12 sm:w-12 mb-3 sm:mb-4 ${isDragging ? "text-primary" : "text-muted-foreground"}`}
           />
           <p className="text-base sm:text-lg font-medium mb-2 text-center text-balance">
-            Arrastra y suelta tu imagen aquí
+            Arrastra y suelta tus imágenes aquí
           </p>
           <p className="text-xs sm:text-sm text-muted-foreground mb-4 text-center">
-            o haz clic para seleccionar un archivo
+            o haz clic para seleccionar archivos
           </p>
-          <input type="file" accept="image/*" onChange={handleFileInput} className="hidden" />
+          <input type="file" multiple accept="image/*" onChange={handleFileInput} className="hidden" />
           <Button type="button" variant="secondary" size="sm">
-            Seleccionar Imagen
+            Seleccionar Imágenes
           </Button>
         </label>
       </Card>

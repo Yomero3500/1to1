@@ -40,6 +40,15 @@ export default function UploadPage() {
     }
   }
 
+  // Handler para actualizar una imagen individual (para análisis IA en móvil)
+  const handleUpdateImage = (imageId: string, updates: Partial<UploadedImage>) => {
+    setImages((prev) =>
+      prev.map((img) =>
+        img.id === imageId ? { ...img, ...updates } : img
+      )
+    )
+  }
+
   const handleCropImage = (image: UploadedImage) => {
     setImageToCrop(image)
     setCropperOpen(true)
@@ -54,7 +63,7 @@ export default function UploadPage() {
               preview: croppedImageUrl,
               cropData,
               isCropped: true,
-              aspectRatio: 3 / 2, // Now matches 2:3 portrait
+              aspectRatio: 2 / 3, // Proporción 2:3 vertical
             }
           : img,
       ),
@@ -63,7 +72,7 @@ export default function UploadPage() {
     // Update selected image if it was the one cropped
     if (selectedImage?.id === imageId) {
       setSelectedImage((prev) =>
-        prev ? { ...prev, preview: croppedImageUrl, cropData, isCropped: true, aspectRatio: 3 / 2 } : null,
+        prev ? { ...prev, preview: croppedImageUrl, cropData, isCropped: true, aspectRatio: 2 / 3 } : null,
       )
     }
   }
@@ -163,6 +172,7 @@ export default function UploadPage() {
               <CardContent>
                 <ImageUploadZone
                   onImagesUploaded={handleImagesUploaded}
+                  onUpdateImage={handleUpdateImage}
                   images={images}
                   onRemoveImage={handleRemoveImage}
                   onCropImage={handleCropImage}

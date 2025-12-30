@@ -176,7 +176,7 @@ export function ImageCropper({ imageSrc, imageId, isOpen, onClose, onCropComplet
           <DialogTitle className="text-base sm:text-lg">Recortar Imagen</DialogTitle>
         </DialogHeader>
 
-        <div className="flex-1 relative bg-black/90 mx-3 sm:mx-6 rounded-lg overflow-hidden">
+        <div className="flex-1 relative bg-black/90 mx-3 sm:mx-6 rounded-lg overflow-hidden touch-none">
           <Cropper
             image={imageSrc}
             crop={crop}
@@ -188,17 +188,13 @@ export function ImageCropper({ imageSrc, imageId, isOpen, onClose, onCropComplet
             onCropComplete={onCropCompleteCallback}
             cropShape="rect"
             showGrid={true}
-            transform={[
-              `translate(${crop.x}px, ${crop.y}px)`,
-              `rotateZ(${rotation}deg)`,
-              `scale(${zoom})`,
-              `scaleX(${flipH ? -1 : 1})`,
-              `scaleY(${flipV ? -1 : 1})`,
-            ].join(' ')}
             style={{
               containerStyle: {
                 width: "100%",
                 height: "100%",
+              },
+              mediaStyle: {
+                transform: `scale(${flipH ? -1 : 1}, ${flipV ? -1 : 1})`,
               },
             }}
           />
@@ -270,7 +266,7 @@ export function ImageCropper({ imageSrc, imageId, isOpen, onClose, onCropComplet
 
           {/* Info */}
           <p className="text-[10px] sm:text-xs text-muted-foreground text-center text-balance">
-            Proporción fija: 3:2 (formato horizontal para cuadros)
+            Proporción fija: 2:3 (formato vertical para cuadros)
           </p>
         </div>
 
