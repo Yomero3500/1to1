@@ -2,17 +2,18 @@
 
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { AlertCircle, Crop } from "lucide-react"
+import { AlertCircle, Crop, Sparkles } from "lucide-react"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 
 interface FramePreviewProps {
   imageSrc: string
   imageId: string
   aspectRatio?: number
+  aiSuggestion?: string
   onCropRequested?: (imageId: string) => void
 }
 
-export function FramePreview({ imageSrc, imageId, aspectRatio = 2 / 3, onCropRequested }: FramePreviewProps) {
+export function FramePreview({ imageSrc, imageId, aspectRatio = 2 / 3, aiSuggestion, onCropRequested }: FramePreviewProps) {
   const needsCrop = Math.abs(aspectRatio - 2 / 3) > 0.01
 
   return (
@@ -73,6 +74,19 @@ export function FramePreview({ imageSrc, imageId, aspectRatio = 2 / 3, onCropReq
           <span>Foto</span>
         </div>
       </div>
+
+      {/* AI Suggestion */}
+      {aiSuggestion && (
+        <div className="bg-purple-50 dark:bg-purple-950/30 border border-purple-200 dark:border-purple-800 rounded-lg p-3">
+          <div className="flex items-start gap-2">
+            <Sparkles className="h-4 w-4 text-purple-500 shrink-0 mt-0.5" />
+            <div>
+              <p className="text-xs font-medium text-purple-700 dark:text-purple-300 mb-1">Recomendación IA</p>
+              <p className="text-xs text-purple-600 dark:text-purple-400">{aiSuggestion}</p>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Crop Warning */}
       {needsCrop && (

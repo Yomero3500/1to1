@@ -200,7 +200,7 @@ export default function UploadPage() {
                   <div className="flex justify-between items-center">
                     <span className="text-sm text-muted-foreground">Requieren recorte:</span>
                     <span className="font-medium">
-                      {images.filter((img) => !img.isCropped && Math.abs(img.aspectRatio - 3 / 2) > 0.05).length}
+                      {images.filter((img) => !img.isCropped && Math.abs(img.aspectRatio - 2 / 3) > 0.05).length}
                     </span>
                   </div>
                   <div className="flex justify-between items-center">
@@ -242,6 +242,7 @@ export default function UploadPage() {
                     imageSrc={selectedImage.preview}
                     imageId={selectedImage.id}
                     aspectRatio={selectedImage.aspectRatio}
+                    aiSuggestion={selectedImage.aiAnalysis?.suggestions}
                     onCropRequested={handleCropRequested}
                   />
                 ) : (

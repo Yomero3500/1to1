@@ -176,7 +176,7 @@ export function ImageCropper({ imageSrc, imageId, isOpen, onClose, onCropComplet
           <DialogTitle className="text-base sm:text-lg">Recortar Imagen</DialogTitle>
         </DialogHeader>
 
-        <div className="flex-1 relative bg-black/90 mx-3 sm:mx-6 rounded-lg overflow-hidden touch-none">
+        <div className="flex-1 relative bg-black mx-0 sm:mx-4 overflow-hidden touch-none">
           <Cropper
             image={imageSrc}
             crop={crop}
@@ -188,6 +188,7 @@ export function ImageCropper({ imageSrc, imageId, isOpen, onClose, onCropComplet
             onCropComplete={onCropCompleteCallback}
             cropShape="rect"
             showGrid={true}
+            restrictPosition={false}
             style={{
               containerStyle: {
                 width: "100%",

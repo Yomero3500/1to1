@@ -73,17 +73,33 @@ export async function processFrameWithSharp(
   // Aplicar ajustes de color
   image = applyColorAdjustments(image, colorAdjustments);
 
-  // Calcular dimensiones del marco
+  // Calcular dimensiones del marco - asegurar proporción 2:3 exacta
   const { frameWidth, frameHeight, outerFramePercent, paspartuPercent } = FRAME_CONFIG;
   
-  const outerFrameSize = Math.round(Math.min(frameWidth, frameHeight) * outerFramePercent);
-  const paspartuSize = Math.round(Math.min(frameWidth, frameHeight) * paspartuPercent);
+  // Verificar proporción 2:3
+  const expectedRatio = 2 / 3;
+  const actualRatio = frameWidth / frameHeight;
+  console.log(`[Sharp] Proporción configurada: ${frameWidth}x${frameHeight} = ${actualRatio.toFixed(4)} (esperado: ${expectedRatio.toFixed(4)})`);
+  
+  // Calcular márgenes proporcionales para mantener ratio 2:3 en el área de foto
+  // Marco horizontal (lados izquierdo/derecho) basado en ancho
+  // Marco vertical (arriba/abajo) basado en altura
+  const outerFrameSizeH = Math.round(frameWidth * outerFramePercent);  // Horizontal
+  const outerFrameSizeV = Math.round(frameHeight * outerFramePercent); // Vertical
+  const paspartuSizeH = Math.round(frameWidth * paspartuPercent);
+  const paspartuSizeV = Math.round(frameHeight * paspartuPercent);
   
   // Área disponible para la foto (después de marco y paspartú)
-  const photoAreaWidth = frameWidth - (outerFrameSize * 2) - (paspartuSize * 2);
-  const photoAreaHeight = frameHeight - (outerFrameSize * 2) - (paspartuSize * 2);
+  const photoAreaWidth = frameWidth - (outerFrameSizeH * 2) - (paspartuSizeH * 2);
+  const photoAreaHeight = frameHeight - (outerFrameSizeV * 2) - (paspartuSizeV * 2);
+  
+  // Verificar que el área de foto también mantenga proporción 2:3
+  const photoRatio = photoAreaWidth / photoAreaHeight;
+  console.log(`[Sharp] Área de foto: ${photoAreaWidth}x${photoAreaHeight} = ${photoRatio.toFixed(4)}`);
+  console.log(`[Sharp] Marco exterior: H=${outerFrameSizeH}px V=${outerFrameSizeV}px, Paspartú: H=${paspartuSizeH}px V=${paspartuSizeV}px`);
 
   // Redimensionar la foto para que encaje en el área disponible
+  // Forzar proporción 2:3 exacta
   const photoBuffer = await image
     .resize(photoAreaWidth, photoAreaHeight, {
       fit: "cover",
@@ -92,28 +108,27 @@ export async function processFrameWithSharp(
     .jpeg({ quality: 95 })
     .toBuffer();
 
-  // Crear el paspartú con la imagen desenfocada de fondo
-  const paspartuWidth = photoAreaWidth + (paspartuSize * 2);
-  const paspartuHeight = photoAreaHeight + (paspartuSize * 2);
+  // Crear el paspartú con la imagen de fondo (sin blur, solo la imagen expandida)
+  const paspartuWidth = photoAreaWidth + (paspartuSizeH * 2);
+  const paspartuHeight = photoAreaHeight + (paspartuSizeV * 2);
   
-  // Crear fondo borroso para el paspartú (imagen escalada y desenfocada)
-  const blurredBackground = await sharp(photoBuffer)
+  // Crear fondo para el paspartú (imagen escalada sin blur, ligeramente oscurecida)
+  const paspartuBackground = await sharp(photoBuffer)
     .resize(paspartuWidth, paspartuHeight, {
       fit: "cover",
       position: "center",
     })
-    .blur(50) // Desenfoque fuerte para el paspartú
-    .modulate({ brightness: 0.7 }) // Oscurecer un poco
+    .modulate({ brightness: 0.75 }) // Oscurecer un poco para diferenciar del centro
     .jpeg({ quality: 90 })
     .toBuffer();
 
   // Componer el paspartú con la foto centrada
-  const paspartuWithPhoto = await sharp(blurredBackground)
+  const paspartuWithPhoto = await sharp(paspartuBackground)
     .composite([
       {
         input: photoBuffer,
-        top: paspartuSize,
-        left: paspartuSize,
+        top: paspartuSizeV,
+        left: paspartuSizeH,
       },
     ])
     .toBuffer();
@@ -130,8 +145,8 @@ export async function processFrameWithSharp(
     .composite([
       {
         input: paspartuWithPhoto,
-        top: outerFrameSize,
-        left: outerFrameSize,
+        top: outerFrameSizeV,
+        left: outerFrameSizeH,
       },
     ])
     .jpeg({ quality: FRAME_CONFIG.outputQuality })
