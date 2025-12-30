@@ -59,22 +59,6 @@ export function FramePreview({ imageSrc, imageId, aspectRatio = 2 / 3, aiSuggest
         </div>
       </div>
 
-      {/* Frame Legend */}
-      <div className="flex flex-wrap items-center justify-center gap-2 sm:gap-4 text-[10px] sm:text-xs text-muted-foreground">
-        <div className="flex items-center gap-1">
-          <div className="w-2.5 h-2.5 sm:w-3 sm:h-3 bg-white border border-gray-300 rounded-sm" />
-          <span>Marco exterior</span>
-        </div>
-        <div className="flex items-center gap-1">
-          <div className="w-2.5 h-2.5 sm:w-3 sm:h-3 bg-gradient-to-br from-gray-200 to-gray-400 rounded-sm" />
-          <span>Paspartú</span>
-        </div>
-        <div className="flex items-center gap-1">
-          <div className="w-2.5 h-2.5 sm:w-3 sm:h-3 bg-blue-500 rounded-sm" />
-          <span>Foto</span>
-        </div>
-      </div>
-
       {/* AI Suggestion */}
       {aiSuggestion && (
         <div className="bg-purple-50 dark:bg-purple-950/30 border border-purple-200 dark:border-purple-800 rounded-lg p-3">

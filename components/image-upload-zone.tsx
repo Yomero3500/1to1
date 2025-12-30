@@ -265,15 +265,6 @@ export function ImageUploadZone({
                       </Badge>
                     )}
                   </div>
-
-                  {/* AI Suggestions (shown below image when analyzed) */}
-                  {image.aiAnalysis && !image.isAnalyzing && (
-                    <div className="p-2 bg-muted/50 text-[10px] sm:text-xs">
-                      <p className="text-muted-foreground truncate" title={image.aiAnalysis.suggestions}>
-                        {image.aiAnalysis.suggestions}
-                      </p>
-                    </div>
-                  )}
                 </Card>
 
                 {/* Action Buttons */}

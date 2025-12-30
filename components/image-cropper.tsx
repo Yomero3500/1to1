@@ -188,7 +188,7 @@ export function ImageCropper({ imageSrc, imageId, isOpen, onClose, onCropComplet
             onCropComplete={onCropCompleteCallback}
             cropShape="rect"
             showGrid={true}
-            restrictPosition={false}
+            restrictPosition={true}
             style={{
               containerStyle: {
                 width: "100%",

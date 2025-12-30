@@ -28,8 +28,12 @@ export default function UploadPage() {
 
   const handleImagesUploaded = (newImages: UploadedImage[]) => {
     setImages(newImages)
-    if (newImages.length > 0 && !selectedImage) {
-      setSelectedImage(newImages[0])
+    // Siempre seleccionar la primera imagen si no hay ninguna seleccionada
+    // o si solo hay una imagen (para mostrar el preview inmediatamente)
+    if (newImages.length > 0) {
+      if (!selectedImage || newImages.length === 1) {
+        setSelectedImage(newImages[0])
+      }
     }
   }
 
@@ -47,6 +51,10 @@ export default function UploadPage() {
         img.id === imageId ? { ...img, ...updates } : img
       )
     )
+    // También actualizar selectedImage si es la imagen que se está actualizando
+    if (selectedImage?.id === imageId) {
+      setSelectedImage((prev) => prev ? { ...prev, ...updates } : null)
+    }
   }
 
   const handleCropImage = (image: UploadedImage) => {
