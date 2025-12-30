@@ -2,15 +2,15 @@ import sharp from "sharp";
 import type { GeminiAnalysisResult, FrameProcessResult } from "./client";
 
 // Configuración del marco basada en proporciones del usuario
-// Cuadro grande: 120x80 cm (proporción 3:2 horizontal)
-// Cuadro mediano: 90x60 cm (proporción 3:2)
-// Cuadro pequeño: 60x40 cm (proporción 3:2)
+// Proporción 2:3 vertical (retrato)
+// Cuadro grande: 80x120 cm
+// Cuadro mediano: 60x90 cm
+// Cuadro pequeño: 40x60 cm
 const FRAME_CONFIG = {
   // Tamaño final del marco en píxeles (para impresión a 300dpi)
-  // 120x80cm equivalente a 300dpi sería enorme, usamos tamaño proporcional
-  // Mantenemos proporción 3:2 (horizontal) con tamaño manejable
-  frameWidth: 3600,  // 12 pulgadas * 300dpi
-  frameHeight: 2400, // 8 pulgadas * 300dpi (proporción 3:2)
+  // Mantenemos proporción 2:3 (vertical) con tamaño manejable
+  frameWidth: 2400,  // 8 pulgadas * 300dpi
+  frameHeight: 3600, // 12 pulgadas * 300dpi (proporción 2:3)
   
   // Proporciones de los marcos (basadas en las medidas del usuario)
   // Marco exterior (diferencia entre 120x80 y 90x60): (120-90)/2 = 15cm de cada lado

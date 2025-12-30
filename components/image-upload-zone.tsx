@@ -85,43 +85,35 @@ export function ImageUploadZone({
 
   const processFiles = useCallback(
     (files: FileList | null) => {
-      if (!files) return
+      if (!files || files.length === 0) return
 
-      const newImages: UploadedImage[] = []
+      // Solo procesar el primer archivo para evitar problemas en móvil
+      const file = files[0]
+      if (!file.type.startsWith("image/")) return
 
-      Array.from(files).forEach((file) => {
-        if (file.type.startsWith("image/")) {
-          const preview = URL.createObjectURL(file)
-          const img = new Image()
+      const preview = URL.createObjectURL(file)
+      const img = new Image()
 
-          img.onload = () => {
-            const aspectRatio = img.height / img.width
-            const uploadedImage: UploadedImage = {
-              id: `${Date.now()}-${Math.random()}`,
-              file,
-              preview,
-              originalPreview: preview,
-              aspectRatio,
-              isCropped: false,
-              isAnalyzing: true, // Marcar como analizando
-            }
-
-            newImages.push(uploadedImage)
-
-            if (newImages.length === Array.from(files).filter((f) => f.type.startsWith("image/")).length) {
-              const allImages = [...images, ...newImages]
-              onImagesUploaded(allImages)
-
-              // Iniciar análisis de IA para cada nueva imagen
-              newImages.forEach((newImg) => {
-                analyzeImageWithAI(newImg, allImages)
-              })
-            }
-          }
-
-          img.src = preview
+      img.onload = () => {
+        const aspectRatio = img.height / img.width
+        const uploadedImage: UploadedImage = {
+          id: `${Date.now()}-${Math.random()}`,
+          file,
+          preview,
+          originalPreview: preview,
+          aspectRatio,
+          isCropped: false,
+          isAnalyzing: true,
         }
-      })
+
+        const allImages = [...images, uploadedImage]
+        onImagesUploaded(allImages)
+
+        // Iniciar análisis de IA para la imagen
+        analyzeImageWithAI(uploadedImage, allImages)
+      }
+
+      img.src = preview
     },
     [images, onImagesUploaded, analyzeImageWithAI],
   )
@@ -166,14 +158,14 @@ export function ImageUploadZone({
             className={`h-10 w-10 sm:h-12 sm:w-12 mb-3 sm:mb-4 ${isDragging ? "text-primary" : "text-muted-foreground"}`}
           />
           <p className="text-base sm:text-lg font-medium mb-2 text-center text-balance">
-            Arrastra y suelta tus imágenes aquí
+            Arrastra y suelta tu imagen aquí
           </p>
           <p className="text-xs sm:text-sm text-muted-foreground mb-4 text-center">
-            o haz clic para seleccionar archivos
+            o haz clic para seleccionar un archivo
           </p>
-          <input type="file" multiple accept="image/*" onChange={handleFileInput} className="hidden" />
+          <input type="file" accept="image/*" onChange={handleFileInput} className="hidden" />
           <Button type="button" variant="secondary" size="sm">
-            Seleccionar Imágenes
+            Seleccionar Imagen
           </Button>
         </label>
       </Card>
@@ -182,7 +174,7 @@ export function ImageUploadZone({
       {images.length > 0 && (
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 sm:gap-4">
           {images.map((image) => {
-            const needsCrop = Math.abs(image.aspectRatio - 3 / 2) > 0.05 && !image.isCropped
+            const needsCrop = Math.abs(image.aspectRatio - 2 / 3) > 0.05 && !image.isCropped
 
             return (
               <div key={image.id} className="relative group">

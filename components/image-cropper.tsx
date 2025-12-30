@@ -182,7 +182,7 @@ export function ImageCropper({ imageSrc, imageId, isOpen, onClose, onCropComplet
             crop={crop}
             zoom={zoom}
             rotation={rotation}
-            aspect={3 / 2}
+            aspect={2 / 3}
             onCropChange={onCropChange}
             onZoomChange={onZoomChange}
             onCropComplete={onCropCompleteCallback}

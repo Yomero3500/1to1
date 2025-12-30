@@ -254,13 +254,13 @@ function ResultsContent() {
 
     try {
       // Crear PDF con páginas del tamaño exacto de las fotos
-      // Proporción 3:2 horizontal (120x80cm → usamos mm para impresión)
-      // Usamos tamaño A4 landscape adaptado a proporción 3:2
-      const photoWidthMm = 297 // Ancho máximo práctico para impresión
-      const photoHeightMm = photoWidthMm * (2/3) // Proporción 3:2 = 198mm
+      // Proporción 2:3 vertical (80x120cm → usamos mm para impresión)
+      // Usamos tamaño A4 portrait adaptado a proporción 2:3
+      const photoWidthMm = 200 // Ancho práctico para impresión vertical
+      const photoHeightMm = photoWidthMm * (3/2) // Proporción 2:3 = 300mm
       
       const pdf = new jsPDF({
-        orientation: "landscape",
+        orientation: "portrait",
         unit: "mm",
         format: [photoWidthMm, photoHeightMm], // Página exacta al tamaño de la foto
       })
@@ -272,7 +272,7 @@ function ResultsContent() {
         try {
           // Agregar nueva página si no es la primera imagen
           if (i > 0) {
-            pdf.addPage([photoWidthMm, photoHeightMm], "landscape")
+            pdf.addPage([photoWidthMm, photoHeightMm], "portrait")
           }
 
           // Descargar imagen y convertir a base64
