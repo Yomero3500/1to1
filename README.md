@@ -102,29 +102,29 @@ Aplicación web profesional para el procesamiento automático de fotografías pa
 ## 🚀 Instalación
 
 ### 1. Clonar el repositorio
-```bash
+\`\`\`bash
 git clone https://github.com/tu-usuario/1to1.git
 cd 1to1
-```
+\`\`\`
 
 ### 2. Instalar dependencias
-```bash
+\`\`\`bash
 pnpm install
-```
+\`\`\`
 
 ### 3. Configurar variables de entorno
-```bash
+\`\`\`bash
 cp .env.example .env.local
-```
+\`\`\`
 
 ### 4. Iniciar en desarrollo
-```bash
+\`\`\`bash
 # Terminal 1: Next.js
 pnpm dev
 
 # Terminal 2: Inngest Dev Server
 pnpm dev:inngest
-```
+\`\`\`
 
 La aplicación estará disponible en `http://localhost:3000`
 
@@ -134,7 +134,7 @@ La aplicación estará disponible en `http://localhost:3000`
 
 ### Variables de Entorno (.env.local)
 
-```env
+\`\`\`env
 # Supabase
 NEXT_PUBLIC_SUPABASE_URL=https://tu-proyecto.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=tu-anon-key
@@ -150,7 +150,7 @@ TOPAZ_API_URL=https://api.topazlabs.com/v1
 # Inngest (opcional para desarrollo local)
 INNGEST_SIGNING_KEY=tu-signing-key
 INNGEST_EVENT_KEY=tu-event-key
-```
+\`\`\`
 
 ### Configuración de Supabase
 
@@ -198,12 +198,12 @@ El sistema genera marcos con proporción 2:3 (vertical):
 
 ### Pasos del Pipeline (Inngest)
 
-```typescript
+\`\`\`typescript
 1. update-status       → Marca imagen como "processing"
 2. analyze-with-gemini → IA analiza y sugiere ajustes
 3. upscale-with-topaz  → Mejora resolución 2x
 4. process-and-persist → Aplica ajustes, genera marco, guarda resultado
-```
+\`\`\`
 
 ### Ajustes de Color (Gemini)
 
@@ -224,7 +224,7 @@ El análisis de IA retorna:
 
 ## 📁 Estructura del Proyecto
 
-```
+\`\`\`
 1to1/
 ├── app/                      # Next.js App Router
 │   ├── api/
@@ -262,7 +262,7 @@ El análisis de IA retorna:
 │   └── Supabase.SQL
 │
 └── public/                  # Archivos estáticos
-```
+\`\`\`
 
 ---
 
@@ -317,17 +317,16 @@ El análisis de IA retorna:
 
 ## 🔧 Scripts Disponibles
 
-```bash
+\`\`\`bash
 pnpm dev          # Inicia servidor de desarrollo
 pnpm dev:inngest  # Inicia Inngest Dev Server
 pnpm build        # Construye para producción
 pnpm start        # Inicia servidor de producción
 pnpm lint         # Ejecuta ESLint
-```
+\`\`\`
 
 ---
 
 ## 📄 Licencia
 
 Este proyecto es privado y confidencial.
-
